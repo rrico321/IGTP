@@ -1,0 +1,15 @@
+[
+  {
+    "id": "machine-1",
+    "name": "Alice's Beast",
+    "description": "High-end gaming rig, great for inference",
+    "gpuModel": "RTX 4090",
+    "vramGb": 24,
+    "cpuModel": "Intel i9-13900K",
+    "ramGb": 64,
+    "status": "available",
+    "ownerId": "user-1",
+    "createdAt": "2026-03-01T00:00:00.000Z",
+    "updatedAt": "2026-03-01T00:00:00.000Z"
+  }
+]
