@@ -1,32 +1,43 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import type { AccessRequest, Machine } from '@/lib/types'
 
 interface Props {
   approvedRequests: AccessRequest[]
   machineMap: Record<string, Machine>
+  modelsByMachine: Record<string, Array<{ modelName: string; modelType: string; sizeBytes: number | null }>>
   preselectedRequestId?: string
 }
 
-export function JobSubmitForm({ approvedRequests, machineMap, preselectedRequestId }: Props) {
+export function JobSubmitForm({ approvedRequests, machineMap, modelsByMachine, preselectedRequestId }: Props) {
   const router = useRouter()
   const [requestId, setRequestId] = useState(preselectedRequestId ?? approvedRequests[0]?.id ?? '')
-  const [command, setCommand] = useState('')
-  const [dockerImage, setDockerImage] = useState('')
-  const [priority, setPriority] = useState('5')
-  const [maxRuntimeSec, setMaxRuntimeSec] = useState('3600')
+  const [model, setModel] = useState('')
+  const [prompt, setPrompt] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   const selectedRequest = approvedRequests.find((r) => r.id === requestId)
   const selectedMachine = selectedRequest ? machineMap[selectedRequest.machineId] : null
+  const availableModels = selectedRequest ? (modelsByMachine[selectedRequest.machineId] ?? []) : []
+
+  // Auto-select first model when machine changes
+  useEffect(() => {
+    if (availableModels.length > 0 && !availableModels.some(m => m.modelName === model)) {
+      setModel(availableModels[0].modelName)
+    }
+  }, [requestId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!command.trim()) {
-      setError('Command is required')
+    if (!prompt.trim()) {
+      setError('Prompt is required')
+      return
+    }
+    if (!model) {
+      setError('Please select a model')
       return
     }
     setLoading(true)
@@ -38,10 +49,10 @@ export function JobSubmitForm({ approvedRequests, machineMap, preselectedRequest
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           requestId,
-          command: command.trim(),
-          dockerImage: dockerImage.trim() || undefined,
-          priority: Number(priority),
-          maxRuntimeSec: Number(maxRuntimeSec),
+          command: prompt.trim(),
+          model,
+          prompt: prompt.trim(),
+          jobType: availableModels.find(m => m.modelName === model)?.modelType ?? 'chat',
         }),
       })
 
@@ -87,67 +98,53 @@ export function JobSubmitForm({ approvedRequests, machineMap, preselectedRequest
         )}
       </div>
 
-      {/* Command */}
+      {/* Model selector */}
       <div>
-        <label className="block text-sm font-medium mb-1.5">Command</label>
+        <label className="block text-sm font-medium mb-1.5">Model</label>
+        {availableModels.length > 0 ? (
+          <>
+            <div className="flex items-center gap-2">
+              <select
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                className="flex-1 bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
+              >
+                {availableModels.map((m) => (
+                  <option key={m.modelName} value={m.modelName}>
+                    {m.modelName}
+                  </option>
+                ))}
+              </select>
+              {model && (
+                <span className="inline-flex items-center rounded-md bg-foreground/10 px-2 py-1 text-xs font-medium text-foreground/70">
+                  {availableModels.find(m => m.modelName === model)?.modelType ?? 'chat'}
+                </span>
+              )}
+            </div>
+            {model && availableModels.find(m => m.modelName === model)?.sizeBytes != null && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Size: {(availableModels.find(m => m.modelName === model)!.sizeBytes! / 1e9).toFixed(1)} GB
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground bg-card border border-border rounded-lg px-3 py-2">
+            No Ollama models available on this machine. The machine owner needs to install models with Ollama.
+          </p>
+        )}
+      </div>
+
+      {/* Prompt */}
+      <div>
+        <label className="block text-sm font-medium mb-1.5">Prompt</label>
         <textarea
-          value={command}
-          onChange={(e) => setCommand(e.target.value)}
-          placeholder="python train.py --epochs 10"
-          rows={3}
-          className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-foreground/20 resize-none"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="Ask anything..."
+          rows={4}
+          className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-foreground/20 resize-none"
           required
         />
-      </div>
-
-      {/* Docker image (optional) */}
-      <div>
-        <label className="block text-sm font-medium mb-1.5">
-          Docker image <span className="text-muted-foreground font-normal">(optional)</span>
-        </label>
-        <input
-          type="text"
-          value={dockerImage}
-          onChange={(e) => setDockerImage(e.target.value)}
-          placeholder="pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime"
-          className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-foreground/20"
-        />
-        <p className="text-xs text-muted-foreground mt-1">
-          Leave blank to run as a bare process on the machine.
-        </p>
-      </div>
-
-      {/* Priority + runtime */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1.5">Priority</label>
-          <select
-            value={priority}
-            onChange={(e) => setPriority(e.target.value)}
-            className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
-          >
-            <option value="1">1 — Highest</option>
-            <option value="3">3 — High</option>
-            <option value="5">5 — Normal</option>
-            <option value="7">7 — Low</option>
-            <option value="10">10 — Lowest</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1.5">Max runtime</label>
-          <select
-            value={maxRuntimeSec}
-            onChange={(e) => setMaxRuntimeSec(e.target.value)}
-            className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
-          >
-            <option value="900">15 minutes</option>
-            <option value="3600">1 hour</option>
-            <option value="7200">2 hours</option>
-            <option value="14400">4 hours</option>
-            <option value="28800">8 hours</option>
-            <option value="86400">24 hours</option>
-          </select>
-        </div>
       </div>
 
       {error && (
@@ -159,10 +156,10 @@ export function JobSubmitForm({ approvedRequests, machineMap, preselectedRequest
       <div className="flex gap-3 pt-1">
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || availableModels.length === 0}
           className="flex-1 bg-foreground text-background py-2 rounded-lg text-sm font-medium hover:bg-foreground/90 disabled:opacity-50 transition-colors"
         >
-          {loading ? 'Submitting…' : 'Submit job'}
+          {loading ? 'Sending...' : 'Send prompt'}
         </button>
         <a
           href="/jobs"

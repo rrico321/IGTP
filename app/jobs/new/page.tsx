@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getRequestsByRequester, getMachineById } from '@/lib/db'
+import { getRequestsByRequester, getMachineById, getModelsForMachine } from '@/lib/db'
 import { requireUserId } from '@/lib/auth'
 import { JobSubmitForm } from './JobSubmitForm'
 
@@ -24,18 +24,26 @@ export default async function NewJobPage({
   const machines = await Promise.all(machineIds.map((id) => getMachineById(id)))
   const machineMap = new Map(machines.filter(Boolean).map((m) => [m!.id, m!]))
 
+  // Fetch models for each machine
+  const modelsByMachine: Record<string, Array<{ modelName: string; modelType: string; sizeBytes: number | null }>> = {}
+  for (const id of machineIds) {
+    const models = await getModelsForMachine(id)
+    modelsByMachine[id] = models
+  }
+
   return (
     <div className="max-w-xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Submit GPU Job</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Run Ollama Prompt</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Run a command on an approved machine.
+          Send a prompt to an Ollama model on an approved machine.
         </p>
       </div>
 
       <JobSubmitForm
         approvedRequests={approvedRequests}
         machineMap={Object.fromEntries(machineMap)}
+        modelsByMachine={modelsByMachine}
         preselectedRequestId={preselectedRequestId}
       />
     </div>
