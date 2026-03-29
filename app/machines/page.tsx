@@ -3,6 +3,7 @@ import { getMachines } from '@/lib/db'
 import { requireUserId } from '@/lib/auth'
 import { updateMachineStatusAction } from './actions'
 import { MachineStatusBadge } from '@/app/components/StatusBadge'
+import { DeleteMachineButton } from './DeleteMachineButton'
 import type { Machine } from '@/lib/types'
 
 const NEXT_STATUS: Record<Machine['status'], Machine['status']> = {
@@ -103,6 +104,7 @@ export default async function MachinesPage() {
                         → {nextStatus}
                       </button>
                     </form>
+                    <DeleteMachineButton machineId={machine.id} />
                   </div>
                 </div>
               </div>

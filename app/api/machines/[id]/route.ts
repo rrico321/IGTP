@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
-import { getMachineById, updateMachine } from "@/lib/db";
+import { getMachineById, updateMachine, deleteMachine } from "@/lib/db";
 import { requireUserId } from "@/lib/auth";
+import { authenticateRequest } from "@/lib/auth";
 
 export async function GET(
   _request: NextRequest,
@@ -44,4 +45,18 @@ export async function PATCH(
 
   const updated = await updateMachine(id, updates);
   return Response.json(updated);
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const userId = await authenticateRequest(request);
+  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  const deleted = await deleteMachine(id, userId);
+  if (!deleted) return Response.json({ error: "Machine not found or not owned by you" }, { status: 404 });
+
+  return Response.json({ ok: true });
 }

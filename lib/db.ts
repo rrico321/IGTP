@@ -79,6 +79,14 @@ export async function updateMachine(
   return rows[0] as Machine;
 }
 
+export async function deleteMachine(id: string, ownerId: string): Promise<boolean> {
+  const sql = getSql();
+  const rows = await sql`
+    DELETE FROM machines WHERE id = ${id} AND owner_id = ${ownerId} RETURNING id
+  `;
+  return rows.length > 0;
+}
+
 // ─── Access Requests ──────────────────────────────────────────────────────────
 
 const REQUEST_COLS = `
