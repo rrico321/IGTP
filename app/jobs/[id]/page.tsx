@@ -5,6 +5,7 @@ import { requireUserId } from '@/lib/auth'
 import { JobStatusBadge } from '@/app/components/StatusBadge'
 import { LocalTime } from '@/app/components/LocalTime'
 import { CancelJobButton } from './CancelJobButton'
+import { MarkdownContent } from '@/app/components/MarkdownContent'
 
 async function JobOutput({ url }: { url: string }) {
   let content: string
@@ -192,9 +193,9 @@ export default async function JobDetailPage({
       <div className="bg-card border border-border rounded-xl p-4">
         <h2 className="text-sm font-medium mb-2 text-green-400">Received from Machine</h2>
         {job.outputLog ? (
-          <pre className="bg-black/40 rounded-lg p-4 text-sm font-mono text-green-300 overflow-x-auto whitespace-pre-wrap break-all max-h-96 overflow-y-auto">
-            {job.outputLog}
-          </pre>
+          <div className="bg-black/40 rounded-lg p-4 max-h-96 overflow-y-auto">
+            <MarkdownContent content={job.outputLog} />
+          </div>
         ) : job.outputLogUrl ? (
           <JobOutput url={job.outputLogUrl} />
         ) : job.status === 'queued' ? (
