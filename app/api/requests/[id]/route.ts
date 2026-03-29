@@ -2,15 +2,28 @@ import type { NextRequest } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { getRequestById, updateRequest, getMachineById, getUserById, createNotification } from "@/lib/db";
 import { sendRequestStatusEmail } from "@/lib/email";
+import { requireUserId } from "@/lib/auth";
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let userId: string;
+  try {
+    userId = await requireUserId();
+  } catch {
+    return Response.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
   const { id } = await params;
   const existing = await getRequestById(id);
   if (!existing) {
     return Response.json({ error: "Request not found" }, { status: 404 });
+  }
+
+  const machine = await getMachineById(existing.machineId);
+  if (!machine || machine.ownerId !== userId) {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await request.json();
@@ -29,12 +42,9 @@ export async function PATCH(
 
   // Fire notifications when request moves to a terminal status
   if (status === "approved" || status === "denied") {
-    const [machine, requester] = await Promise.all([
-      getMachineById(existing.machineId),
-      getUserById(existing.requesterId),
-    ]);
+    const requester = await getUserById(existing.requesterId);
 
-    const machineName = machine?.name ?? "a machine";
+    const machineName = machine.name;
     const type = status === "approved" ? "request_approved" : "request_denied";
     const title = status === "approved"
       ? `Request approved — ${machineName}`
