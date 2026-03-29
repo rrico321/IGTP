@@ -30,6 +30,9 @@ export async function POST(
       exitCode: body.exitCode ?? null,
       outputLogUrl: body.outputLogUrl ?? null,
       outputLog: body.outputLog ?? null,
+      promptTokens: body.promptTokens ?? null,
+      completionTokens: body.completionTokens ?? null,
+      totalTokens: body.totalTokens ?? null,
       completedAt: new Date().toISOString(),
     });
 

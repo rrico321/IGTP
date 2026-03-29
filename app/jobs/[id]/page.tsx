@@ -115,6 +115,24 @@ export default async function JobDetailPage({
         ))}
       </div>
 
+      {/* Token Usage */}
+      {job.totalTokens != null && (
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="bg-card border border-border rounded-lg p-3">
+            <p className="text-xs text-muted-foreground mb-0.5">Prompt tokens</p>
+            <p className="text-sm font-medium font-mono">{job.promptTokens?.toLocaleString() ?? '—'}</p>
+          </div>
+          <div className="bg-card border border-border rounded-lg p-3">
+            <p className="text-xs text-muted-foreground mb-0.5">Completion tokens</p>
+            <p className="text-sm font-medium font-mono">{job.completionTokens?.toLocaleString() ?? '—'}</p>
+          </div>
+          <div className="bg-card border border-border rounded-lg p-3">
+            <p className="text-xs text-muted-foreground mb-0.5">Total tokens</p>
+            <p className="text-sm font-medium font-mono">{job.totalTokens?.toLocaleString() ?? '—'}</p>
+          </div>
+        </div>
+      )}
+
       {/* Resource limits */}
       <div className="bg-card border border-border rounded-xl p-4 mb-6">
         <h2 className="text-sm font-medium mb-3">Resource limits</h2>
@@ -154,8 +172,13 @@ export default async function JobDetailPage({
       {/* Sent to Machine */}
       <div className="bg-card border border-border rounded-xl p-4 mb-6">
         <h2 className="text-sm font-medium mb-2 text-blue-400">Sent to Machine</h2>
+        {job.model && (
+          <p className="text-xs text-muted-foreground mb-2">
+            Model: <span className="font-mono text-foreground/70">{job.model}</span>
+          </p>
+        )}
         <pre className="bg-black/40 rounded-lg p-4 text-sm font-mono text-foreground overflow-x-auto whitespace-pre-wrap break-all">
-          <span className="text-muted-foreground select-none">$ </span>{job.command}
+          {job.prompt ? job.prompt : <><span className="text-muted-foreground select-none">$ </span>{job.command}</>}
         </pre>
         {job.dockerImage && (
           <div className="mt-2 text-xs text-muted-foreground">
