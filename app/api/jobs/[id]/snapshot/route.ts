@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { getJobById, createSnapshot, updateJob, updateMachine } from "@/lib/db";
+import { getJobById, createSnapshot, updateJob, updateMachine, addConversationMessage, updateConversationTokens } from "@/lib/db";
 import { authenticateRequest } from "@/lib/auth";
 
 export async function POST(
@@ -37,6 +37,21 @@ export async function POST(
     });
 
     await updateMachine(job.machineId, { status: "available" });
+
+    // If this is a conversation job, save the assistant message
+    if (updated?.conversationId && body.status === "completed" && body.outputLog) {
+      const totalTokens = body.totalTokens ?? 0;
+      await addConversationMessage({
+        conversationId: updated.conversationId,
+        role: "assistant",
+        content: body.outputLog,
+        jobId: id,
+        tokens: totalTokens,
+      }).catch(() => {});
+
+      await updateConversationTokens(updated.conversationId, totalTokens).catch(() => {});
+    }
+
     return Response.json(updated);
   }
 
