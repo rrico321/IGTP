@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-import type { Machine, AccessRequest, User, TrustConnection, Notification } from "./types";
+import type { Machine, AccessRequest, User, TrustConnection, Notification, GpuJob, JobUsageSnapshot, UsageReport } from "./types";
 
 function getSql() {
   const url = process.env.DATABASE_URL;
@@ -350,4 +350,250 @@ export async function updateMachineHeartbeat(id: string, ownerId: string): Promi
 export function isMachineOnline(machine: Pick<Machine, "lastHeartbeatAt">): boolean {
   if (!machine.lastHeartbeatAt) return false;
   return Date.now() - new Date(machine.lastHeartbeatAt).getTime() < 5 * 60 * 1000;
+}
+
+// ─── GPU Jobs ─────────────────────────────────────────────────────────────────
+
+const JOB_COLS = `
+  id,
+  machine_id        AS "machineId",
+  requester_id      AS "requesterId",
+  request_id        AS "requestId",
+  command,
+  docker_image      AS "dockerImage",
+  priority,
+  status,
+  max_runtime_sec   AS "maxRuntimeSec",
+  vram_limit_gb     AS "vramLimitGb",
+  cpu_limit_cores   AS "cpuLimitCores",
+  ram_limit_gb      AS "ramLimitGb",
+  exit_code         AS "exitCode",
+  output_log_url    AS "outputLogUrl",
+  queued_at         AS "queuedAt",
+  started_at        AS "startedAt",
+  completed_at      AS "completedAt",
+  created_at        AS "createdAt",
+  updated_at        AS "updatedAt"
+`;
+
+export async function getJobs(filters: {
+  machineId?: string;
+  requesterId?: string;
+  status?: string;
+}): Promise<GpuJob[]> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(JOB_COLS)} FROM gpu_jobs
+    WHERE (${filters.machineId ?? null}::text IS NULL OR machine_id = ${filters.machineId ?? null})
+      AND (${filters.requesterId ?? null}::text IS NULL OR requester_id = ${filters.requesterId ?? null})
+      AND (${filters.status ?? null}::text IS NULL OR status = ${filters.status ?? null})
+    ORDER BY priority ASC, queued_at ASC
+  `;
+  return rows as GpuJob[];
+}
+
+export async function getJobById(id: string): Promise<GpuJob | undefined> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(JOB_COLS)} FROM gpu_jobs WHERE id = ${id}
+  `;
+  return rows[0] as GpuJob | undefined;
+}
+
+export async function createJob(data: {
+  machineId: string;
+  requesterId: string;
+  requestId: string;
+  command: string;
+  dockerImage?: string;
+  priority?: number;
+  maxRuntimeSec?: number;
+  vramLimitGb?: number | null;
+  cpuLimitCores?: number | null;
+  ramLimitGb?: number | null;
+}): Promise<GpuJob> {
+  const sql = getSql();
+  const id = `job-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const now = new Date().toISOString();
+  const rows = await sql`
+    INSERT INTO gpu_jobs (
+      id, machine_id, requester_id, request_id, command, docker_image,
+      priority, status, max_runtime_sec, vram_limit_gb, cpu_limit_cores,
+      ram_limit_gb, queued_at, created_at, updated_at
+    ) VALUES (
+      ${id}, ${data.machineId}, ${data.requesterId}, ${data.requestId},
+      ${data.command}, ${data.dockerImage ?? ''},
+      ${data.priority ?? 5}, 'queued', ${data.maxRuntimeSec ?? 3600},
+      ${data.vramLimitGb ?? null}, ${data.cpuLimitCores ?? null},
+      ${data.ramLimitGb ?? null}, ${now}, ${now}, ${now}
+    )
+    RETURNING ${sql.unsafe(JOB_COLS)}
+  `;
+  return rows[0] as GpuJob;
+}
+
+export async function updateJob(
+  id: string,
+  updates: Partial<Pick<GpuJob, "status" | "priority" | "exitCode" | "outputLogUrl" | "startedAt" | "completedAt">>
+): Promise<GpuJob | null> {
+  const existing = await getJobById(id);
+  if (!existing) return null;
+
+  const sql = getSql();
+  const now = new Date().toISOString();
+  const merged = { ...existing, ...updates };
+  const rows = await sql`
+    UPDATE gpu_jobs SET
+      status          = ${merged.status},
+      priority        = ${merged.priority},
+      exit_code       = ${merged.exitCode ?? null},
+      output_log_url  = ${merged.outputLogUrl ?? null},
+      started_at      = ${merged.startedAt ?? null},
+      completed_at    = ${merged.completedAt ?? null},
+      updated_at      = ${now}
+    WHERE id = ${id}
+    RETURNING ${sql.unsafe(JOB_COLS)}
+  `;
+  return rows[0] as GpuJob;
+}
+
+/** Fetch the next queued job for a machine (lowest priority number, oldest first). */
+export async function getNextQueuedJob(machineId: string): Promise<GpuJob | undefined> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(JOB_COLS)} FROM gpu_jobs
+    WHERE machine_id = ${machineId} AND status = 'queued'
+    ORDER BY priority ASC, queued_at ASC
+    LIMIT 1
+  `;
+  return rows[0] as GpuJob | undefined;
+}
+
+/** Atomically claim a queued job as running. Returns null if already claimed by another process. */
+export async function claimJobAsRunning(jobId: string): Promise<GpuJob | null> {
+  const sql = getSql();
+  const now = new Date().toISOString();
+  const rows = await sql`
+    UPDATE gpu_jobs SET
+      status     = 'running',
+      started_at = ${now},
+      updated_at = ${now}
+    WHERE id = ${jobId} AND status = 'queued'
+    RETURNING ${sql.unsafe(JOB_COLS)}
+  `;
+  return rows.length > 0 ? (rows[0] as GpuJob) : null;
+}
+
+// ─── Job Usage Snapshots ──────────────────────────────────────────────────────
+
+const SNAPSHOT_COLS = `
+  id,
+  job_id          AS "jobId",
+  sampled_at      AS "sampledAt",
+  gpu_util_pct    AS "gpuUtilPct",
+  vram_used_gb    AS "vramUsedGb",
+  cpu_util_pct    AS "cpuUtilPct",
+  ram_used_gb     AS "ramUsedGb"
+`;
+
+export async function getSnapshotsForJob(jobId: string): Promise<JobUsageSnapshot[]> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(SNAPSHOT_COLS)} FROM job_usage_snapshots
+    WHERE job_id = ${jobId}
+    ORDER BY sampled_at ASC
+  `;
+  return rows as JobUsageSnapshot[];
+}
+
+export async function createSnapshot(data: {
+  jobId: string;
+  gpuUtilPct?: number | null;
+  vramUsedGb?: number | null;
+  cpuUtilPct?: number | null;
+  ramUsedGb?: number | null;
+}): Promise<JobUsageSnapshot> {
+  const sql = getSql();
+  const id = `snap-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const now = new Date().toISOString();
+  const rows = await sql`
+    INSERT INTO job_usage_snapshots (id, job_id, sampled_at, gpu_util_pct, vram_used_gb, cpu_util_pct, ram_used_gb)
+    VALUES (${id}, ${data.jobId}, ${now},
+            ${data.gpuUtilPct ?? null}, ${data.vramUsedGb ?? null},
+            ${data.cpuUtilPct ?? null}, ${data.ramUsedGb ?? null})
+    RETURNING ${sql.unsafe(SNAPSHOT_COLS)}
+  `;
+  return rows[0] as JobUsageSnapshot;
+}
+
+// ─── Usage Report ─────────────────────────────────────────────────────────────
+
+export async function getUsageReport(
+  userId: string,
+  from: string,
+  to: string
+): Promise<UsageReport> {
+  const sql = getSql();
+
+  const jobRows = await sql`
+    SELECT
+      j.id,
+      j.machine_id        AS "machineId",
+      j.status,
+      j.started_at        AS "startedAt",
+      j.completed_at      AS "completedAt",
+      EXTRACT(EPOCH FROM (COALESCE(j.completed_at, NOW()) - j.started_at))::int AS "runtimeSec"
+    FROM gpu_jobs j
+    WHERE j.requester_id = ${userId}
+      AND j.queued_at >= ${from}::timestamptz
+      AND j.queued_at < ${to}::timestamptz
+  `;
+
+  const snapshotAgg = await sql`
+    SELECT
+      j.machine_id AS "machineId",
+      AVG(s.gpu_util_pct) AS "avgGpuUtil"
+    FROM job_usage_snapshots s
+    JOIN gpu_jobs j ON j.id = s.job_id
+    WHERE j.requester_id = ${userId}
+      AND j.queued_at >= ${from}::timestamptz
+      AND j.queued_at < ${to}::timestamptz
+    GROUP BY j.machine_id
+  `;
+
+  const machineMap = new Map<string, { jobs: number; runtimeSec: number }>();
+  let totalRuntimeSec = 0;
+
+  for (const row of jobRows) {
+    const machineId = row.machineId as string;
+    const entry = machineMap.get(machineId) ?? { jobs: 0, runtimeSec: 0 };
+    entry.jobs += 1;
+    const rt = row.startedAt ? (row.runtimeSec as number) : 0;
+    entry.runtimeSec += rt;
+    totalRuntimeSec += rt;
+    machineMap.set(machineId, entry);
+  }
+
+  const avgGpuRows = snapshotAgg as Array<{ machineId: string; avgGpuUtil: number | null }>;
+  const overallAvgGpu =
+    avgGpuRows.length > 0
+      ? Math.round(avgGpuRows.reduce((s, r) => s + (r.avgGpuUtil ?? 0), 0) / avgGpuRows.length)
+      : null;
+
+  return {
+    userId,
+    from,
+    to,
+    totalJobs: jobRows.length,
+    completedJobs: jobRows.filter((r) => r.status === "completed").length,
+    failedJobs: jobRows.filter((r) => r.status === "failed").length,
+    timedOutJobs: jobRows.filter((r) => r.status === "timed_out").length,
+    totalRuntimeSec,
+    avgGpuUtilPct: overallAvgGpu,
+    machineBreakdown: Array.from(machineMap.entries()).map(([machineId, v]) => ({
+      machineId,
+      jobs: v.jobs,
+      runtimeSec: v.runtimeSec,
+    })),
+  };
 }

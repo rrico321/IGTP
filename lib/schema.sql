@@ -55,6 +55,46 @@ CREATE TABLE IF NOT EXISTS notifications (
 
 ALTER TABLE machines ADD COLUMN IF NOT EXISTS last_heartbeat_at TIMESTAMPTZ;
 
+-- Phase 8: GPU Workload Management
+CREATE TABLE IF NOT EXISTS gpu_jobs (
+  id                TEXT PRIMARY KEY,
+  machine_id        TEXT NOT NULL REFERENCES machines(id),
+  requester_id      TEXT NOT NULL REFERENCES users(id),
+  request_id        TEXT NOT NULL REFERENCES access_requests(id),
+  command           TEXT NOT NULL,
+  docker_image      TEXT NOT NULL DEFAULT '',
+  priority          INTEGER NOT NULL DEFAULT 5,
+  status            TEXT NOT NULL DEFAULT 'queued',
+  -- queued | running | completed | failed | cancelled | timed_out
+  max_runtime_sec   INTEGER NOT NULL DEFAULT 3600,
+  vram_limit_gb     INTEGER,
+  cpu_limit_cores   NUMERIC,
+  ram_limit_gb      INTEGER,
+  exit_code         INTEGER,
+  output_log_url    TEXT,
+  queued_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  started_at        TIMESTAMPTZ,
+  completed_at      TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_gpu_jobs_machine    ON gpu_jobs(machine_id, status);
+CREATE INDEX IF NOT EXISTS idx_gpu_jobs_requester  ON gpu_jobs(requester_id);
+CREATE INDEX IF NOT EXISTS idx_gpu_jobs_request    ON gpu_jobs(request_id);
+
+CREATE TABLE IF NOT EXISTS job_usage_snapshots (
+  id              TEXT PRIMARY KEY,
+  job_id          TEXT NOT NULL REFERENCES gpu_jobs(id),
+  sampled_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  gpu_util_pct    INTEGER,
+  vram_used_gb    NUMERIC,
+  cpu_util_pct    INTEGER,
+  ram_used_gb     NUMERIC
+);
+
+CREATE INDEX IF NOT EXISTS idx_job_snapshots_job ON job_usage_snapshots(job_id, sampled_at);
+
 -- Seed data (idempotent via ON CONFLICT DO NOTHING)
 INSERT INTO users (id, name, email, created_at) VALUES
   ('user-1', 'Alice Chen', 'alice@example.com', '2026-03-01T00:00:00.000Z'),

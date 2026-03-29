@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { href: '/browse', label: 'Browse' },
   { href: '/machines', label: 'My Machines' },
   { href: '/requests', label: 'My Requests' },
+  { href: '/jobs', label: 'Jobs' },
   { href: '/settings/trust', label: 'Trust' },
 ]
 
