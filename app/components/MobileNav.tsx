@@ -8,10 +8,9 @@ import { logoutAction } from '@/app/login/actions'
 const NAV_LINKS = [
   { href: '/browse', label: 'Browse' },
   { href: '/machines', label: 'My Machines' },
-  { href: '/requests', label: 'My Requests' },
-  { href: '/jobs', label: 'Jobs' },
+  { href: '/conversations', label: 'Chat' },
   { href: '/network', label: 'Network' },
-  { href: '/settings/invites', label: 'Invite' },
+  { href: '/settings', label: 'Settings' },
 ]
 
 interface MobileNavProps {
