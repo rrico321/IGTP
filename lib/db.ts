@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-import type { Machine, AccessRequest, User, TrustConnection } from "./types";
+import type { Machine, AccessRequest, User, TrustConnection, Notification } from "./types";
 
 function getSql() {
   const url = process.env.DATABASE_URL;
@@ -9,20 +9,23 @@ function getSql() {
 
 // ─── Machines ────────────────────────────────────────────────────────────────
 
+const MACHINE_COLS = `
+  id, name, description,
+  gpu_model          AS "gpuModel",
+  vram_gb            AS "vramGb",
+  cpu_model          AS "cpuModel",
+  ram_gb             AS "ramGb",
+  status,
+  owner_id           AS "ownerId",
+  last_heartbeat_at  AS "lastHeartbeatAt",
+  created_at         AS "createdAt",
+  updated_at         AS "updatedAt"
+`;
+
 export async function getMachines(): Promise<Machine[]> {
   const sql = getSql();
   const rows = await sql`
-    SELECT id, name, description,
-           gpu_model    AS "gpuModel",
-           vram_gb      AS "vramGb",
-           cpu_model    AS "cpuModel",
-           ram_gb       AS "ramGb",
-           status,
-           owner_id     AS "ownerId",
-           created_at   AS "createdAt",
-           updated_at   AS "updatedAt"
-    FROM machines
-    ORDER BY created_at DESC
+    SELECT ${sql.unsafe(MACHINE_COLS)} FROM machines ORDER BY created_at DESC
   `;
   return rows as Machine[];
 }
@@ -30,16 +33,7 @@ export async function getMachines(): Promise<Machine[]> {
 export async function getMachineById(id: string): Promise<Machine | undefined> {
   const sql = getSql();
   const rows = await sql`
-    SELECT id, name, description,
-           gpu_model    AS "gpuModel",
-           vram_gb      AS "vramGb",
-           cpu_model    AS "cpuModel",
-           ram_gb       AS "ramGb",
-           status,
-           owner_id     AS "ownerId",
-           created_at   AS "createdAt",
-           updated_at   AS "updatedAt"
-    FROM machines WHERE id = ${id}
+    SELECT ${sql.unsafe(MACHINE_COLS)} FROM machines WHERE id = ${id}
   `;
   return rows[0] as Machine | undefined;
 }
@@ -54,15 +48,7 @@ export async function createMachine(
     INSERT INTO machines (id, name, description, gpu_model, vram_gb, cpu_model, ram_gb, status, owner_id, created_at, updated_at)
     VALUES (${id}, ${data.name}, ${data.description}, ${data.gpuModel}, ${data.vramGb},
             ${data.cpuModel}, ${data.ramGb}, ${data.status}, ${data.ownerId}, ${now}, ${now})
-    RETURNING id, name, description,
-              gpu_model  AS "gpuModel",
-              vram_gb    AS "vramGb",
-              cpu_model  AS "cpuModel",
-              ram_gb     AS "ramGb",
-              status,
-              owner_id   AS "ownerId",
-              created_at AS "createdAt",
-              updated_at AS "updatedAt"
+    RETURNING ${sql.unsafe(MACHINE_COLS)}
   `;
   return rows[0] as Machine;
 }
@@ -88,15 +74,7 @@ export async function updateMachine(
       status      = ${merged.status},
       updated_at  = ${now}
     WHERE id = ${id}
-    RETURNING id, name, description,
-              gpu_model  AS "gpuModel",
-              vram_gb    AS "vramGb",
-              cpu_model  AS "cpuModel",
-              ram_gb     AS "ramGb",
-              status,
-              owner_id   AS "ownerId",
-              created_at AS "createdAt",
-              updated_at AS "updatedAt"
+    RETURNING ${sql.unsafe(MACHINE_COLS)}
   `;
   return rows[0] as Machine;
 }
@@ -286,4 +264,90 @@ export async function removeTrustConnection(id: string, userId: string): Promise
     RETURNING id
   `;
   return rows.length > 0;
+}
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+const NOTIF_COLS = `
+  id,
+  user_id     AS "userId",
+  type,
+  title,
+  message,
+  request_id  AS "requestId",
+  read,
+  created_at  AS "createdAt"
+`;
+
+export async function getNotificationsForUser(userId: string): Promise<Notification[]> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(NOTIF_COLS)} FROM notifications
+    WHERE user_id = ${userId}
+    ORDER BY created_at DESC
+    LIMIT 50
+  `;
+  return rows as Notification[];
+}
+
+export async function getUnreadCountForUser(userId: string): Promise<number> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT COUNT(*)::int AS count FROM notifications
+    WHERE user_id = ${userId} AND read = FALSE
+  `;
+  return (rows[0] as { count: number }).count;
+}
+
+export async function createNotification(data: {
+  userId: string;
+  type: Notification["type"];
+  title: string;
+  message: string;
+  requestId?: string;
+}): Promise<Notification> {
+  const sql = getSql();
+  const id = `notif-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const now = new Date().toISOString();
+  const rows = await sql`
+    INSERT INTO notifications (id, user_id, type, title, message, request_id, read, created_at)
+    VALUES (${id}, ${data.userId}, ${data.type}, ${data.title}, ${data.message},
+            ${data.requestId ?? null}, FALSE, ${now})
+    RETURNING ${sql.unsafe(NOTIF_COLS)}
+  `;
+  return rows[0] as Notification;
+}
+
+export async function markNotificationRead(id: string, userId: string): Promise<boolean> {
+  const sql = getSql();
+  const rows = await sql`
+    UPDATE notifications SET read = TRUE
+    WHERE id = ${id} AND user_id = ${userId}
+    RETURNING id
+  `;
+  return rows.length > 0;
+}
+
+export async function markAllNotificationsRead(userId: string): Promise<void> {
+  const sql = getSql();
+  await sql`UPDATE notifications SET read = TRUE WHERE user_id = ${userId} AND read = FALSE`;
+}
+
+// ─── Machine Heartbeat ────────────────────────────────────────────────────────
+
+export async function updateMachineHeartbeat(id: string, ownerId: string): Promise<Machine | null> {
+  const sql = getSql();
+  const now = new Date().toISOString();
+  const rows = await sql`
+    UPDATE machines SET last_heartbeat_at = ${now}
+    WHERE id = ${id} AND owner_id = ${ownerId}
+    RETURNING ${sql.unsafe(MACHINE_COLS)}
+  `;
+  return rows.length > 0 ? (rows[0] as Machine) : null;
+}
+
+/** Returns true if the machine sent a heartbeat within the last 5 minutes. */
+export function isMachineOnline(machine: Pick<Machine, "lastHeartbeatAt">): boolean {
+  if (!machine.lastHeartbeatAt) return false;
+  return Date.now() - new Date(machine.lastHeartbeatAt).getTime() < 5 * 60 * 1000;
 }

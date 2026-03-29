@@ -8,8 +8,20 @@ export interface Machine {
   ramGb: number;
   status: "available" | "busy" | "offline";
   ownerId: string;
+  lastHeartbeatAt?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: "request_approved" | "request_denied" | "request_submitted";
+  title: string;
+  message: string;
+  requestId: string | null;
+  read: boolean;
+  createdAt: string;
 }
 
 export interface AccessRequest {

@@ -1,8 +1,9 @@
 import Link from 'next/link'
 import { getCurrentUserId } from '@/lib/auth'
-import { getUserById } from '@/lib/db'
+import { getUserById, getUnreadCountForUser } from '@/lib/db'
 import { LogoutButton } from './LogoutButton'
 import { MobileNav } from './MobileNav'
+import { NotificationBell } from './NotificationBell'
 
 const NAV_LINKS = [
   { href: '/browse', label: 'Browse' },
@@ -14,7 +15,10 @@ const NAV_LINKS = [
 export async function NavBar() {
   const userId = await getCurrentUserId()
   if (!userId) return null
-  const user = await getUserById(userId)
+  const [user, unreadCount] = await Promise.all([
+    getUserById(userId),
+    getUnreadCountForUser(userId),
+  ])
   if (!user) return null
 
   return (
@@ -41,6 +45,7 @@ export async function NavBar() {
 
         {/* Desktop right side */}
         <div className="hidden sm:flex items-center gap-3">
+          <NotificationBell initialUnread={unreadCount} />
           <span className="text-sm text-muted-foreground">{user.name}</span>
           <LogoutButton />
         </div>
