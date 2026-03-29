@@ -11,6 +11,7 @@ export function AcceptInviteForm({
   inviteeEmail: string;
 }) {
   const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -22,7 +23,7 @@ export function AcceptInviteForm({
       const res = await fetch(`/api/invites/${token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, password }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -71,13 +72,31 @@ export function AcceptInviteForm({
         />
       </div>
 
+      <div>
+        <label
+          htmlFor="password"
+          className="block text-xs font-medium text-muted-foreground mb-1.5"
+        >
+          Choose a password
+        </label>
+        <input
+          id="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Enter a password"
+          required
+          className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-foreground/20 placeholder:text-muted-foreground/50"
+        />
+      </div>
+
       {error && (
         <p className="text-xs text-destructive">{error}</p>
       )}
 
       <button
         type="submit"
-        disabled={isPending || !name.trim()}
+        disabled={isPending || !name.trim() || !password}
         className="w-full py-2 text-sm font-medium bg-foreground text-background rounded-lg hover:bg-foreground/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isPending ? "Joining…" : "Accept invitation & join"}

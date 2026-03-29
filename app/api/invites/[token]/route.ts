@@ -44,9 +44,12 @@ export async function POST(
     return Response.json({ error: "Invite expired or already used" }, { status: 410 });
   }
 
-  const { name } = await req.json().catch(() => ({}));
+  const { name, password } = await req.json().catch(() => ({}));
   if (!name || typeof name !== "string" || !name.trim()) {
     return Response.json({ error: "name is required" }, { status: 400 });
+  }
+  if (!password || typeof password !== "string") {
+    return Response.json({ error: "password is required" }, { status: 400 });
   }
 
   // If email already has an account, do NOT grant a session via invite token.
@@ -60,7 +63,7 @@ export async function POST(
   }
 
   // New user — create account
-  const user = await createUserWithEmail(name.trim(), invite.inviteeEmail);
+  const user = await createUserWithEmail(name.trim(), invite.inviteeEmail, password);
 
   // Mark invite as accepted
   await acceptInvite(token, user.id);

@@ -38,7 +38,7 @@ export default async function MachinesPage() {
 
       {/* Empty state */}
       {machines.length === 0 && (
-        <div className="text-center py-24 border border-border rounded-xl bg-card/30">
+        <div className="text-center px-8 py-24 border border-border rounded-xl bg-card/30">
           <p className="text-muted-foreground mb-2 text-sm">
             You don&apos;t have any machines registered yet.
           </p>

@@ -175,6 +175,13 @@ CREATE INDEX IF NOT EXISTS idx_conv_messages_conv ON conversation_messages(conve
 
 ALTER TABLE gpu_jobs ADD COLUMN IF NOT EXISTS conversation_id TEXT REFERENCES conversations(id);
 
+-- User passwords
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
+
+-- Set default password 'Welcome123' for existing users (SHA-256 hash)
+UPDATE users SET password_hash = '925d2e9bb3679c1b9dd58ab20bb974fdc61f3ff4db5e12bb54fab0600261c7b3'
+WHERE password_hash IS NULL;
+
 -- Friend requests
 CREATE TABLE IF NOT EXISTS friend_requests (
   id          TEXT PRIMARY KEY,

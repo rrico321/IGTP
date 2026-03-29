@@ -202,26 +202,48 @@ export async function getUserByEmail(email: string): Promise<User | undefined> {
   return rows[0] as User | undefined;
 }
 
-export async function createUser(name: string): Promise<User> {
+async function hashPassword(password: string): Promise<string> {
+  const { createHash } = await import("node:crypto");
+  return createHash("sha256").update(password).digest("hex");
+}
+
+export async function verifyPassword(userId: string, password: string): Promise<boolean> {
+  const sql = getSql();
+  const hash = await hashPassword(password);
+  const rows = await sql`
+    SELECT 1 FROM users WHERE id = ${userId} AND password_hash = ${hash}
+  `;
+  return rows.length > 0;
+}
+
+export async function updatePassword(userId: string, newPassword: string): Promise<void> {
+  const sql = getSql();
+  const hash = await hashPassword(newPassword);
+  await sql`UPDATE users SET password_hash = ${hash} WHERE id = ${userId}`;
+}
+
+export async function createUser(name: string, password: string = "Welcome123"): Promise<User> {
   const sql = getSql();
   const slug = name.toLowerCase().replace(/\s+/g, ".");
   const id = `user-${Date.now()}`;
   const now = new Date().toISOString();
+  const pwHash = await hashPassword(password);
   const rows = await sql`
-    INSERT INTO users (id, name, email, created_at)
-    VALUES (${id}, ${name}, ${slug + "@example.com"}, ${now})
+    INSERT INTO users (id, name, email, password_hash, created_at)
+    VALUES (${id}, ${name}, ${slug + "@example.com"}, ${pwHash}, ${now})
     RETURNING id, name, email, created_at AS "createdAt"
   `;
   return rows[0] as User;
 }
 
-export async function createUserWithEmail(name: string, email: string): Promise<User> {
+export async function createUserWithEmail(name: string, email: string, password: string = "Welcome123"): Promise<User> {
   const sql = getSql();
   const id = `user-${Date.now()}`;
   const now = new Date().toISOString();
+  const pwHash = await hashPassword(password);
   const rows = await sql`
-    INSERT INTO users (id, name, email, created_at)
-    VALUES (${id}, ${name}, ${email}, ${now})
+    INSERT INTO users (id, name, email, password_hash, created_at)
+    VALUES (${id}, ${name}, ${email}, ${pwHash}, ${now})
     RETURNING id, name, email, created_at AS "createdAt"
   `;
   return rows[0] as User;

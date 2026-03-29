@@ -67,6 +67,20 @@ export function LoginForm({ users }: { users: User[] }) {
         </label>
       </div>
 
+      <div>
+        <label htmlFor="password" className="block text-xs font-medium text-muted-foreground mb-1.5">
+          Password
+        </label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          required
+          placeholder={selected === '__new__' ? 'Choose a password' : 'Enter your password'}
+          className="w-full bg-input/30 border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder-muted-foreground/50 focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring/50 transition-colors"
+        />
+      </div>
+
       {state?.error && (
         <p className="text-sm text-destructive">{state.error}</p>
       )}

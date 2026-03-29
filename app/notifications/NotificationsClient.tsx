@@ -13,7 +13,7 @@ const ICONS = {
 export function NotificationsClient({ notifications }: { notifications: Notification[] }) {
   if (notifications.length === 0) {
     return (
-      <div className="text-center py-20 border border-border rounded-xl bg-card/30 w-full">
+      <div className="text-center px-8 py-20 border border-border rounded-xl bg-card/30 w-full">
         <p className="text-muted-foreground text-sm">No notifications yet. You&apos;ll see updates here when someone requests your machine or your request is approved.</p>
       </div>
     )
