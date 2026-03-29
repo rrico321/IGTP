@@ -4,6 +4,7 @@
   "description": "GPU workload execution daemon for IGTP machines",
   "main": "dist/index.js",
   "scripts": {
+    "setup": "tsx setup.ts",
     "build": "tsc --project tsconfig.json",
     "start": "node dist/index.js",
     "dev": "tsx index.ts"

@@ -3,8 +3,10 @@ import { notFound } from 'next/navigation'
 import { getMachineById, getUserById } from '@/lib/db'
 import { requireUserId } from '@/lib/auth'
 import { RequestForm } from './RequestForm'
+import { A1111SessionPanel } from './A1111SessionPanel'
 import { createRequestAction } from '../actions'
 import { MachineStatusBadge } from '@/app/components/StatusBadge'
+import { isTrusted } from '@/lib/db'
 import type { Machine } from '@/lib/types'
 
 const STATUS_LABELS: Record<Machine['status'], string> = {
@@ -26,6 +28,8 @@ export default async function BrowseMachineDetailPage({
   const owner = await getUserById(machine.ownerId)
   const isOwner = machine.ownerId === userId
   const canRequest = machine.status === 'available' && !isOwner
+  const userIsTrusted = isOwner || await isTrusted(machine.ownerId, userId)
+  const showA1111 = machine.a1111Enabled && userIsTrusted
 
   const action = createRequestAction.bind(null, machine.id)
 
@@ -75,6 +79,15 @@ export default async function BrowseMachineDetailPage({
           </div>
         </dl>
       </div>
+
+      {/* A1111 Session */}
+      {showA1111 && (
+        <A1111SessionPanel
+          machineId={machine.id}
+          machineName={machine.name}
+          isAvailable={machine.a1111Available}
+        />
+      )}
 
       {/* Request access */}
       {canRequest && (

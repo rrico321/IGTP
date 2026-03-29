@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-import type { Machine, AccessRequest, User, TrustConnection, Notification, GpuJob, JobUsageSnapshot, UsageReport, Invite, ApiKey, MachineModel, Conversation, ConversationMessage, FriendRequest } from "./types";
+import type { Machine, AccessRequest, User, TrustConnection, Notification, GpuJob, JobUsageSnapshot, UsageReport, Invite, ApiKey, MachineModel, Conversation, ConversationMessage, FriendRequest, A1111Session } from "./types";
 
 function getSql() {
   const url = process.env.DATABASE_URL;
@@ -18,6 +18,8 @@ const MACHINE_COLS = `
   status,
   owner_id           AS "ownerId",
   last_heartbeat_at  AS "lastHeartbeatAt",
+  a1111_enabled      AS "a1111Enabled",
+  a1111_available    AS "a1111Available",
   created_at         AS "createdAt",
   updated_at         AS "updatedAt"
 `;
@@ -381,11 +383,19 @@ export async function markAllNotificationsRead(userId: string): Promise<void> {
 
 // ─── Machine Heartbeat ────────────────────────────────────────────────────────
 
-export async function updateMachineHeartbeat(id: string, ownerId: string): Promise<Machine | null> {
+export async function updateMachineHeartbeat(
+  id: string,
+  ownerId: string,
+  extra?: { a1111Enabled?: boolean; a1111Available?: boolean }
+): Promise<Machine | null> {
   const sql = getSql();
   const now = new Date().toISOString();
+  const a1111Enabled = extra?.a1111Enabled ?? false;
+  const a1111Available = extra?.a1111Available ?? false;
   const rows = await sql`
-    UPDATE machines SET last_heartbeat_at = ${now}
+    UPDATE machines SET last_heartbeat_at = ${now},
+      a1111_enabled = ${a1111Enabled},
+      a1111_available = ${a1111Available}
     WHERE id = ${id} AND owner_id = ${ownerId}
     RETURNING ${sql.unsafe(MACHINE_COLS)}
   `;
@@ -1081,6 +1091,93 @@ export async function denyFriendRequest(id: string, userId: string): Promise<boo
   const rows = await sql`
     UPDATE friend_requests SET status = 'denied'
     WHERE id = ${id} AND to_user_id = ${userId} AND status = 'pending'
+    RETURNING id
+  `;
+  return rows.length > 0;
+}
+
+// ─── A1111 Sessions ──────────────────────────────────────────────────────────
+
+const SESSION_COLS = `
+  id,
+  machine_id    AS "machineId",
+  requester_id  AS "requesterId",
+  status,
+  tunnel_url    AS "tunnelUrl",
+  error,
+  expires_at    AS "expiresAt",
+  created_at    AS "createdAt",
+  updated_at    AS "updatedAt"
+`;
+
+export async function createA1111Session(machineId: string, requesterId: string): Promise<A1111Session> {
+  const sql = getSql();
+  const id = `session-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const now = new Date().toISOString();
+  const rows = await sql`
+    INSERT INTO a1111_sessions (id, machine_id, requester_id, status, created_at, updated_at)
+    VALUES (${id}, ${machineId}, ${requesterId}, 'pending', ${now}, ${now})
+    RETURNING ${sql.unsafe(SESSION_COLS)}
+  `;
+  return rows[0] as A1111Session;
+}
+
+export async function getSessionsForMachine(machineId: string): Promise<A1111Session[]> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(SESSION_COLS)} FROM a1111_sessions
+    WHERE machine_id = ${machineId} AND status IN ('pending', 'active', 'stop_requested')
+    ORDER BY created_at DESC
+  `;
+  return rows as A1111Session[];
+}
+
+export async function getSessionById(id: string): Promise<A1111Session | undefined> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(SESSION_COLS)} FROM a1111_sessions WHERE id = ${id}
+  `;
+  return rows[0] as A1111Session | undefined;
+}
+
+export async function getActiveSessionForRequester(requesterId: string): Promise<A1111Session | undefined> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(SESSION_COLS)} FROM a1111_sessions
+    WHERE requester_id = ${requesterId} AND status IN ('pending', 'active')
+    ORDER BY created_at DESC LIMIT 1
+  `;
+  return rows[0] as A1111Session | undefined;
+}
+
+export async function updateSessionTunnel(
+  id: string,
+  data: { tunnelUrl?: string | null; status?: string; error?: string; expiresAt?: string }
+): Promise<A1111Session | undefined> {
+  const sql = getSql();
+  const now = new Date().toISOString();
+  const rows = await sql`
+    UPDATE a1111_sessions SET
+      tunnel_url = COALESCE(${data.tunnelUrl ?? null}, tunnel_url),
+      status = COALESCE(${data.status ?? null}, status),
+      error = COALESCE(${data.error ?? null}, error),
+      expires_at = COALESCE(${data.expiresAt ?? null}::timestamptz, expires_at),
+      updated_at = ${now}
+    WHERE id = ${id}
+    RETURNING ${sql.unsafe(SESSION_COLS)}
+  `;
+  return rows[0] as A1111Session | undefined;
+}
+
+export async function requestStopSession(id: string, userId: string): Promise<boolean> {
+  const sql = getSql();
+  // Allow the requester or the machine owner to stop
+  const rows = await sql`
+    UPDATE a1111_sessions SET status = 'stop_requested', updated_at = NOW()
+    WHERE id = ${id} AND status IN ('pending', 'active')
+      AND (requester_id = ${userId} OR machine_id IN (
+        SELECT id FROM machines WHERE owner_id = ${userId}
+      ))
     RETURNING id
   `;
   return rows.length > 0;

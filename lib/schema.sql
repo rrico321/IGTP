@@ -199,6 +199,25 @@ CREATE TABLE IF NOT EXISTS friend_requests (
 CREATE INDEX IF NOT EXISTS idx_friend_requests_to ON friend_requests(to_user_id, status);
 CREATE INDEX IF NOT EXISTS idx_friend_requests_from ON friend_requests(from_user_id);
 
+-- A1111 support
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS a1111_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS a1111_available BOOLEAN NOT NULL DEFAULT FALSE;
+
+CREATE TABLE IF NOT EXISTS a1111_sessions (
+  id            TEXT PRIMARY KEY,
+  machine_id    TEXT NOT NULL REFERENCES machines(id),
+  requester_id  TEXT NOT NULL REFERENCES users(id),
+  status        TEXT NOT NULL DEFAULT 'pending',
+  tunnel_url    TEXT,
+  error         TEXT,
+  expires_at    TIMESTAMPTZ,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_a1111_sessions_machine ON a1111_sessions(machine_id, status);
+CREATE INDEX IF NOT EXISTS idx_a1111_sessions_requester ON a1111_sessions(requester_id);
+
 -- Seed data (idempotent via ON CONFLICT DO NOTHING)
 INSERT INTO users (id, name, email, created_at) VALUES
   ('user-1', 'Alice Chen', 'alice@example.com', '2026-03-01T00:00:00.000Z'),

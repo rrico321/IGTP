@@ -9,6 +9,8 @@ export interface Machine {
   status: "available" | "busy" | "offline";
   ownerId: string;
   lastHeartbeatAt?: string | null;
+  a1111Enabled: boolean;
+  a1111Available: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -151,6 +153,18 @@ export interface FriendRequest {
   toUserId: string;
   status: "pending" | "accepted" | "denied";
   createdAt: string;
+}
+
+export interface A1111Session {
+  id: string;
+  machineId: string;
+  requesterId: string;
+  status: "pending" | "active" | "ended" | "failed" | "stop_requested";
+  tunnelUrl: string | null;
+  error: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface UsageReport {
