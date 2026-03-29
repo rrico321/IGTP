@@ -22,7 +22,7 @@ import { createWriteStream } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { createReadStream } from "fs";
-import { unlink } from "fs/promises";
+import { unlink, readFile } from "fs/promises";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -86,8 +86,8 @@ async function reportSnapshot(jobId: string, metrics: {
   await apiPost(`/api/jobs/${jobId}/snapshot`, metrics);
 }
 
-async function reportCompletion(jobId: string, status: string, exitCode: number | null, logUrl: string | null) {
-  await apiPost(`/api/jobs/${jobId}/snapshot`, { status, exitCode, outputLogUrl: logUrl });
+async function reportCompletion(jobId: string, status: string, exitCode: number | null, logUrl: string | null, outputText: string | null) {
+  await apiPost(`/api/jobs/${jobId}/snapshot`, { status, exitCode, outputLogUrl: logUrl, outputLog: outputText });
 }
 
 // ─── Log upload ───────────────────────────────────────────────────────────────
@@ -199,10 +199,12 @@ async function executeJob(job: GpuJob): Promise<void> {
 
       console.log(`[igtp-daemon] Job ${job.id} ended — status=${status} exitCode=${code}`);
 
+      // Read output before uploading/deleting
+      const outputText = await readFile(logPath, "utf-8").catch(() => "");
       const logUrl = await uploadLog(logPath, job.id);
       await unlink(logPath).catch(() => {});
 
-      await reportCompletion(job.id, status, code, logUrl).catch((err) => {
+      await reportCompletion(job.id, status, code, logUrl, outputText || null).catch((err) => {
         console.error(`[igtp-daemon] Failed to report completion for ${job.id}:`, err);
       });
 

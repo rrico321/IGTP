@@ -67,6 +67,7 @@ export interface GpuJob {
   ramLimitGb: number | null;
   exitCode: number | null;
   outputLogUrl: string | null;
+  outputLog: string | null;
   queuedAt: string;
   startedAt: string | null;
   completedAt: string | null;

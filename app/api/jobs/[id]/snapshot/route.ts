@@ -29,6 +29,7 @@ export async function POST(
       status: body.status as TerminalStatus,
       exitCode: body.exitCode ?? null,
       outputLogUrl: body.outputLogUrl ?? null,
+      outputLog: body.outputLog ?? null,
       completedAt: new Date().toISOString(),
     });
 

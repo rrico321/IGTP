@@ -389,6 +389,7 @@ const JOB_COLS = `
   ram_limit_gb      AS "ramLimitGb",
   exit_code         AS "exitCode",
   output_log_url    AS "outputLogUrl",
+  output_log        AS "outputLog",
   queued_at         AS "queuedAt",
   started_at        AS "startedAt",
   completed_at      AS "completedAt",
@@ -454,7 +455,7 @@ export async function createJob(data: {
 
 export async function updateJob(
   id: string,
-  updates: Partial<Pick<GpuJob, "status" | "priority" | "exitCode" | "outputLogUrl" | "startedAt" | "completedAt">>
+  updates: Partial<Pick<GpuJob, "status" | "priority" | "exitCode" | "outputLogUrl" | "outputLog" | "startedAt" | "completedAt">>
 ): Promise<GpuJob | null> {
   const existing = await getJobById(id);
   if (!existing) return null;
@@ -468,6 +469,7 @@ export async function updateJob(
       priority        = ${merged.priority},
       exit_code       = ${merged.exitCode ?? null},
       output_log_url  = ${merged.outputLogUrl ?? null},
+      output_log      = ${merged.outputLog ?? null},
       started_at      = ${merged.startedAt ?? null},
       completed_at    = ${merged.completedAt ?? null},
       updated_at      = ${now}

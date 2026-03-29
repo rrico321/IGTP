@@ -123,6 +123,8 @@ CREATE TABLE IF NOT EXISTS api_keys (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE gpu_jobs ADD COLUMN IF NOT EXISTS output_log TEXT;
+
 CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id);
 CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON api_keys(key_hash);
 
