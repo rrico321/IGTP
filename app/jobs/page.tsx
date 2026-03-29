@@ -32,7 +32,7 @@ export default async function JobsPage() {
       </div>
 
       {jobs.length === 0 && (
-        <div className="text-center py-20 border border-border rounded-xl bg-card/30">
+        <div className="text-center px-8 py-20 border border-border rounded-xl bg-card/30">
           <p className="text-muted-foreground mb-4">
             You haven&apos;t submitted any GPU jobs yet.
           </p>

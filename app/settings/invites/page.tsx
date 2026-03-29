@@ -118,7 +118,7 @@ export default async function InvitesPage() {
       )}
 
       {invites.length === 0 && referrals.length === 0 && (
-        <div className="text-center py-12 border border-border rounded-xl bg-card/30">
+        <div className="text-center px-8 py-12 border border-border rounded-xl bg-card/30">
           <p className="text-muted-foreground text-sm">
             No invites sent yet. Enter an email above to get started.
           </p>

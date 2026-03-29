@@ -26,7 +26,7 @@ export default async function RequestsPage() {
 
       {/* Empty state */}
       {requests.length === 0 && (
-        <div className="text-center py-20 border border-border rounded-xl bg-card/30">
+        <div className="text-center px-8 py-20 border border-border rounded-xl bg-card/30">
           <p className="text-muted-foreground mb-4">
             You haven&apos;t requested access to any machines yet.
           </p>

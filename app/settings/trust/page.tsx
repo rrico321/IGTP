@@ -38,7 +38,7 @@ export default async function TrustSettingsPage() {
         </h2>
 
         {connections.length === 0 && (
-          <div className="text-center py-16 border border-border rounded-xl bg-card/30">
+          <div className="text-center px-8 py-16 border border-border rounded-xl bg-card/30">
             <p className="text-muted-foreground text-sm">
               Your trust network is empty. Add users above to get started.
             </p>

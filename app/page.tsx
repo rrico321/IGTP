@@ -111,7 +111,7 @@ async function AuthenticatedHome({ userId }: { userId: string }) {
       )}
 
       {trustedMachines.length === 0 && (
-        <div className="text-center py-24 border border-border rounded-xl bg-card/30">
+        <div className="text-center px-8 py-24 border border-border rounded-xl bg-card/30">
           <p className="text-muted-foreground mb-4">
             {trustedIds.length === 0
               ? 'Add trusted users to see their machines here.'

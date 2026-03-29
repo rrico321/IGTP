@@ -72,7 +72,7 @@ export default async function BrowsePage({
 
       {/* No trust network */}
       {trustedIds.length === 0 && (
-        <div className="text-center py-20 border border-border rounded-xl bg-card/30 mt-6">
+        <div className="text-center px-8 py-20 border border-border rounded-xl bg-card/30 mt-6">
           <p className="text-muted-foreground mb-3">Your trust network is empty.</p>
           <Link
             href="/settings/trust"
@@ -122,7 +122,7 @@ export default async function BrowsePage({
       )}
 
       {trustedIds.length > 0 && machines.length === 0 && (
-        <div className="text-center py-20 border border-border rounded-xl bg-card/30 mt-6">
+        <div className="text-center px-8 py-20 border border-border rounded-xl bg-card/30 mt-6">
           <p className="text-muted-foreground mb-3">No machines match your filters.</p>
           {hasFilters && (
             <Link
