@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-import type { Machine, AccessRequest, User, TrustConnection, Notification, GpuJob, JobUsageSnapshot, UsageReport, Invite, ApiKey } from "./types";
+import type { Machine, AccessRequest, User, TrustConnection, Notification, GpuJob, JobUsageSnapshot, UsageReport, Invite, ApiKey, MachineModel } from "./types";
 
 function getSql() {
   const url = process.env.DATABASE_URL;
@@ -390,6 +390,12 @@ const JOB_COLS = `
   exit_code         AS "exitCode",
   output_log_url    AS "outputLogUrl",
   output_log        AS "outputLog",
+  model,
+  prompt,
+  job_type          AS "jobType",
+  prompt_tokens     AS "promptTokens",
+  completion_tokens AS "completionTokens",
+  total_tokens      AS "totalTokens",
   queued_at         AS "queuedAt",
   started_at        AS "startedAt",
   completed_at      AS "completedAt",
@@ -455,7 +461,7 @@ export async function createJob(data: {
 
 export async function updateJob(
   id: string,
-  updates: Partial<Pick<GpuJob, "status" | "priority" | "exitCode" | "outputLogUrl" | "outputLog" | "startedAt" | "completedAt">>
+  updates: Partial<Pick<GpuJob, "status" | "priority" | "exitCode" | "outputLogUrl" | "outputLog" | "model" | "prompt" | "jobType" | "promptTokens" | "completionTokens" | "totalTokens" | "startedAt" | "completedAt">>
 ): Promise<GpuJob | null> {
   const existing = await getJobById(id);
   if (!existing) return null;
@@ -470,6 +476,12 @@ export async function updateJob(
       exit_code       = ${merged.exitCode ?? null},
       output_log_url  = ${merged.outputLogUrl ?? null},
       output_log      = ${merged.outputLog ?? null},
+      model             = ${merged.model ?? null},
+      prompt            = ${merged.prompt ?? null},
+      job_type          = ${merged.jobType ?? 'chat'},
+      prompt_tokens     = ${merged.promptTokens ?? null},
+      completion_tokens = ${merged.completionTokens ?? null},
+      total_tokens      = ${merged.totalTokens ?? null},
       started_at      = ${merged.startedAt ?? null},
       completed_at    = ${merged.completedAt ?? null},
       updated_at      = ${now}
@@ -712,6 +724,58 @@ export async function getInviterOfUser(userId: string): Promise<User | undefined
     LIMIT 1
   `;
   return rows[0] as User | undefined;
+}
+
+// ─── Machine Models ──────────────────────────────────────────────────────────
+
+const MODEL_COLS = `
+  machine_id  AS "machineId",
+  model_name  AS "modelName",
+  model_type  AS "modelType",
+  size_bytes  AS "sizeBytes",
+  updated_at  AS "updatedAt"
+`;
+
+export async function getModelsForMachine(machineId: string): Promise<MachineModel[]> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(MODEL_COLS)} FROM machine_models
+    WHERE machine_id = ${machineId}
+    ORDER BY model_name ASC
+  `;
+  return rows as MachineModel[];
+}
+
+export async function syncMachineModels(
+  machineId: string,
+  models: Array<{ name: string; type: string; sizeBytes: number }>
+): Promise<void> {
+  const sql = getSql();
+  const now = new Date().toISOString();
+
+  // Delete models no longer present
+  const modelNames = models.map((m) => m.name);
+  if (modelNames.length > 0) {
+    await sql`
+      DELETE FROM machine_models
+      WHERE machine_id = ${machineId}
+        AND model_name != ALL(${modelNames})
+    `;
+  } else {
+    await sql`DELETE FROM machine_models WHERE machine_id = ${machineId}`;
+  }
+
+  // Upsert current models
+  for (const m of models) {
+    await sql`
+      INSERT INTO machine_models (machine_id, model_name, model_type, size_bytes, updated_at)
+      VALUES (${machineId}, ${m.name}, ${m.type}, ${m.sizeBytes}, ${now})
+      ON CONFLICT (machine_id, model_name) DO UPDATE SET
+        model_type = ${m.type},
+        size_bytes = ${m.sizeBytes},
+        updated_at = ${now}
+    `;
+  }
 }
 
 // ─── API Keys ────────────────────────────────────────────────────────────────

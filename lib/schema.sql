@@ -128,6 +128,24 @@ ALTER TABLE gpu_jobs ADD COLUMN IF NOT EXISTS output_log TEXT;
 CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id);
 CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON api_keys(key_hash);
 
+-- Ollama model sync
+CREATE TABLE IF NOT EXISTS machine_models (
+  machine_id  TEXT NOT NULL REFERENCES machines(id) ON DELETE CASCADE,
+  model_name  TEXT NOT NULL,
+  model_type  TEXT NOT NULL DEFAULT 'chat',
+  size_bytes  BIGINT,
+  updated_at  TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (machine_id, model_name)
+);
+
+-- Ollama job fields
+ALTER TABLE gpu_jobs ADD COLUMN IF NOT EXISTS model TEXT;
+ALTER TABLE gpu_jobs ADD COLUMN IF NOT EXISTS prompt TEXT;
+ALTER TABLE gpu_jobs ADD COLUMN IF NOT EXISTS job_type TEXT NOT NULL DEFAULT 'chat';
+ALTER TABLE gpu_jobs ADD COLUMN IF NOT EXISTS prompt_tokens INTEGER;
+ALTER TABLE gpu_jobs ADD COLUMN IF NOT EXISTS completion_tokens INTEGER;
+ALTER TABLE gpu_jobs ADD COLUMN IF NOT EXISTS total_tokens INTEGER;
+
 -- Seed data (idempotent via ON CONFLICT DO NOTHING)
 INSERT INTO users (id, name, email, created_at) VALUES
   ('user-1', 'Alice Chen', 'alice@example.com', '2026-03-01T00:00:00.000Z'),

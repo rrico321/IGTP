@@ -68,6 +68,12 @@ export interface GpuJob {
   exitCode: number | null;
   outputLogUrl: string | null;
   outputLog: string | null;
+  model: string | null;
+  prompt: string | null;
+  jobType: "chat" | "embedding";
+  promptTokens: number | null;
+  completionTokens: number | null;
+  totalTokens: number | null;
   queuedAt: string;
   startedAt: string | null;
   completedAt: string | null;
@@ -104,6 +110,14 @@ export interface ApiKey {
   label: string;
   lastUsedAt: string | null;
   createdAt: string;
+}
+
+export interface MachineModel {
+  machineId: string;
+  modelName: string;
+  modelType: "chat" | "embedding";
+  sizeBytes: number | null;
+  updatedAt: string;
 }
 
 export interface UsageReport {
