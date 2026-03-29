@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createRequest, getMachineById, isTrusted } from '@/lib/db'
+import { createRequest, getMachineById, getUserById, isTrusted, createNotification } from '@/lib/db'
 import { requireUserId } from '@/lib/auth'
 
 export type ActionState = { error: string } | { success: true } | null
@@ -28,12 +28,22 @@ export async function createRequestAction(
     return { error: 'Estimated hours must be at least 1.' }
   }
 
-  await createRequest({
+  const accessRequest = await createRequest({
     machineId,
     requesterId: userId,
     purpose,
     estimatedHours,
   })
+
+  // Notify the machine owner about the new request
+  const requester = await getUserById(userId)
+  createNotification({
+    userId: machine.ownerId,
+    type: "request_submitted",
+    title: `New request — ${machine.name}`,
+    message: `${requester?.name ?? "Someone"} wants to use ${machine.name} for ${estimatedHours}h: "${purpose}"`,
+    requestId: accessRequest.id,
+  }).catch(() => {})
 
   revalidatePath('/requests')
   revalidatePath(`/browse/${machineId}`)

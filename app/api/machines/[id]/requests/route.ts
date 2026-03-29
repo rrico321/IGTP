@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { getMachineById, getRequestsByMachine, createRequest } from "@/lib/db";
+import { getMachineById, getRequestsByMachine, createRequest, getUserById, createNotification } from "@/lib/db";
 
 export async function GET(
   _request: NextRequest,
@@ -39,6 +39,16 @@ export async function POST(
     purpose,
     estimatedHours: Number(estimatedHours),
   });
+
+  // Notify the machine owner
+  const requester = await getUserById(requesterId);
+  createNotification({
+    userId: machine.ownerId,
+    type: "request_submitted",
+    title: `New request — ${machine.name}`,
+    message: `${requester?.name ?? "Someone"} wants to use ${machine.name} for ${estimatedHours}h: "${purpose}"`,
+    requestId: accessRequest.id,
+  }).catch(() => {});
 
   return Response.json(accessRequest, { status: 201 });
 }
