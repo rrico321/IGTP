@@ -146,6 +146,33 @@ ALTER TABLE gpu_jobs ADD COLUMN IF NOT EXISTS prompt_tokens INTEGER;
 ALTER TABLE gpu_jobs ADD COLUMN IF NOT EXISTS completion_tokens INTEGER;
 ALTER TABLE gpu_jobs ADD COLUMN IF NOT EXISTS total_tokens INTEGER;
 
+-- Conversations
+CREATE TABLE IF NOT EXISTS conversations (
+  id          TEXT PRIMARY KEY,
+  user_id     TEXT NOT NULL REFERENCES users(id),
+  machine_id  TEXT NOT NULL REFERENCES machines(id),
+  request_id  TEXT NOT NULL REFERENCES access_requests(id),
+  model       TEXT NOT NULL,
+  title       TEXT NOT NULL DEFAULT 'New conversation',
+  total_tokens INTEGER NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_id);
+
+CREATE TABLE IF NOT EXISTS conversation_messages (
+  id              TEXT PRIMARY KEY,
+  conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  role            TEXT NOT NULL,
+  content         TEXT NOT NULL,
+  job_id          TEXT REFERENCES gpu_jobs(id),
+  tokens          INTEGER,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_conv_messages_conv ON conversation_messages(conversation_id, created_at);
+
 -- Seed data (idempotent via ON CONFLICT DO NOTHING)
 INSERT INTO users (id, name, email, created_at) VALUES
   ('user-1', 'Alice Chen', 'alice@example.com', '2026-03-01T00:00:00.000Z'),

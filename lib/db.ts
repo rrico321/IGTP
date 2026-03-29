@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-import type { Machine, AccessRequest, User, TrustConnection, Notification, GpuJob, JobUsageSnapshot, UsageReport, Invite, ApiKey, MachineModel } from "./types";
+import type { Machine, AccessRequest, User, TrustConnection, Notification, GpuJob, JobUsageSnapshot, UsageReport, Invite, ApiKey, MachineModel, Conversation, ConversationMessage } from "./types";
 
 function getSql() {
   const url = process.env.DATABASE_URL;
@@ -849,4 +849,117 @@ export async function deleteApiKey(id: string, userId: string): Promise<boolean>
     DELETE FROM api_keys WHERE id = ${id} AND user_id = ${userId} RETURNING id
   `;
   return rows.length > 0;
+}
+
+// ─── Conversations ───────────────────────────────────────────────────────────
+
+const CONV_COLS = `
+  id,
+  user_id      AS "userId",
+  machine_id   AS "machineId",
+  request_id   AS "requestId",
+  model,
+  title,
+  total_tokens AS "totalTokens",
+  created_at   AS "createdAt",
+  updated_at   AS "updatedAt"
+`;
+
+const CONV_MSG_COLS = `
+  id,
+  conversation_id AS "conversationId",
+  role,
+  content,
+  job_id          AS "jobId",
+  tokens,
+  created_at      AS "createdAt"
+`;
+
+export async function getConversationsByUser(userId: string): Promise<Conversation[]> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(CONV_COLS)} FROM conversations
+    WHERE user_id = ${userId}
+    ORDER BY updated_at DESC
+  `;
+  return rows as Conversation[];
+}
+
+export async function getConversationById(id: string): Promise<Conversation | undefined> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(CONV_COLS)} FROM conversations WHERE id = ${id}
+  `;
+  return rows[0] as Conversation | undefined;
+}
+
+export async function createConversation(data: {
+  userId: string;
+  machineId: string;
+  requestId: string;
+  model: string;
+  title?: string;
+}): Promise<Conversation> {
+  const sql = getSql();
+  const id = `conv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const now = new Date().toISOString();
+  const rows = await sql`
+    INSERT INTO conversations (id, user_id, machine_id, request_id, model, title, created_at, updated_at)
+    VALUES (${id}, ${data.userId}, ${data.machineId}, ${data.requestId}, ${data.model},
+            ${data.title ?? 'New conversation'}, ${now}, ${now})
+    RETURNING ${sql.unsafe(CONV_COLS)}
+  `;
+  return rows[0] as Conversation;
+}
+
+export async function updateConversationTitle(id: string, title: string): Promise<void> {
+  const sql = getSql();
+  const now = new Date().toISOString();
+  await sql`UPDATE conversations SET title = ${title}, updated_at = ${now} WHERE id = ${id}`;
+}
+
+export async function updateConversationTokens(id: string, additionalTokens: number): Promise<void> {
+  const sql = getSql();
+  const now = new Date().toISOString();
+  await sql`
+    UPDATE conversations SET total_tokens = total_tokens + ${additionalTokens}, updated_at = ${now}
+    WHERE id = ${id}
+  `;
+}
+
+export async function deleteConversation(id: string, userId: string): Promise<boolean> {
+  const sql = getSql();
+  const rows = await sql`
+    DELETE FROM conversations WHERE id = ${id} AND user_id = ${userId} RETURNING id
+  `;
+  return rows.length > 0;
+}
+
+export async function getMessagesForConversation(conversationId: string): Promise<ConversationMessage[]> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(CONV_MSG_COLS)} FROM conversation_messages
+    WHERE conversation_id = ${conversationId}
+    ORDER BY created_at ASC
+  `;
+  return rows as ConversationMessage[];
+}
+
+export async function addConversationMessage(data: {
+  conversationId: string;
+  role: "user" | "assistant";
+  content: string;
+  jobId?: string;
+  tokens?: number;
+}): Promise<ConversationMessage> {
+  const sql = getSql();
+  const id = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const now = new Date().toISOString();
+  const rows = await sql`
+    INSERT INTO conversation_messages (id, conversation_id, role, content, job_id, tokens, created_at)
+    VALUES (${id}, ${data.conversationId}, ${data.role}, ${data.content},
+            ${data.jobId ?? null}, ${data.tokens ?? null}, ${now})
+    RETURNING ${sql.unsafe(CONV_MSG_COLS)}
+  `;
+  return rows[0] as ConversationMessage;
 }

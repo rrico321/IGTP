@@ -120,6 +120,28 @@ export interface MachineModel {
   updatedAt: string;
 }
 
+export interface Conversation {
+  id: string;
+  userId: string;
+  machineId: string;
+  requestId: string;
+  model: string;
+  title: string;
+  totalTokens: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConversationMessage {
+  id: string;
+  conversationId: string;
+  role: "user" | "assistant";
+  content: string;
+  jobId: string | null;
+  tokens: number | null;
+  createdAt: string;
+}
+
 export interface UsageReport {
   userId: string;
   from: string;
