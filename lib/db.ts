@@ -1,4 +1,3 @@
-import { createHash } from "crypto";
 import { neon } from "@neondatabase/serverless";
 import type { Machine, AccessRequest, User, TrustConnection, Notification, GpuJob, JobUsageSnapshot, UsageReport, Invite, ApiKey } from "./types";
 
@@ -707,7 +706,8 @@ export async function getInviterOfUser(userId: string): Promise<User | undefined
 
 // ─── API Keys ────────────────────────────────────────────────────────────────
 
-function hashApiKey(key: string): string {
+async function hashApiKey(key: string): Promise<string> {
+  const { createHash } = await import("node:crypto");
   return createHash("sha256").update(key).digest("hex");
 }
 
@@ -734,7 +734,7 @@ export async function createApiKey(userId: string, label: string): Promise<{ api
   const now = new Date().toISOString();
   const rows = await sql`
     INSERT INTO api_keys (id, user_id, key_hash, key_prefix, label, created_at)
-    VALUES (${id}, ${userId}, ${hashApiKey(rawKey)}, ${rawKey.slice(0, 9)}, ${label}, ${now})
+    VALUES (${id}, ${userId}, ${await hashApiKey(rawKey)}, ${rawKey.slice(0, 9)}, ${label}, ${now})
     RETURNING ${sql.unsafe(API_KEY_COLS)}
   `;
   return { apiKey: rows[0] as ApiKey, rawKey };
@@ -752,7 +752,7 @@ export async function getApiKeysByUser(userId: string): Promise<ApiKey[]> {
 
 export async function validateApiKey(rawKey: string): Promise<string | null> {
   const sql = getSql();
-  const hash = hashApiKey(rawKey);
+  const hash = await hashApiKey(rawKey);
   const rows = await sql`
     SELECT user_id, id FROM api_keys WHERE key_hash = ${hash}
   `;
