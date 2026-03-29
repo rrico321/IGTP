@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { SESSION_COOKIE } from '@/lib/auth'
 
 // Paths accessible without authentication
-const PUBLIC_PATHS = ['/login']
+const PUBLIC_PREFIXES = ['/login', '/invite/']
+const PUBLIC_EXACT = ['/']
 
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p))
+  const isPublic =
+    PUBLIC_EXACT.includes(pathname) ||
+    PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))
   if (isPublic) return NextResponse.next()
 
   const session = request.cookies.get(SESSION_COOKIE)

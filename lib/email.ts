@@ -10,6 +10,41 @@ function getResend(): Resend | null {
 
 const FROM = process.env.EMAIL_FROM ?? "IGTP <noreply@igtp.app>";
 
+export async function sendInviteEmail(opts: {
+  to: string;
+  inviterName: string;
+  inviteUrl: string;
+}): Promise<void> {
+  const client = getResend();
+  if (!client) return;
+
+  const { to, inviterName, inviteUrl } = opts;
+
+  await client.emails.send({
+    from: FROM,
+    to,
+    subject: `${inviterName} invited you to IGTP`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;">
+        <h2 style="margin:0 0 8px;">You're invited to IGTP</h2>
+        <p style="color:#374151;">
+          <strong>${inviterName}</strong> has invited you to join IGTP — a platform to share
+          and access GPU compute with people you trust.
+        </p>
+        <div style="margin:24px 0;">
+          <a href="${inviteUrl}"
+             style="display:inline-block;background:#18181b;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500;">
+            Accept invitation →
+          </a>
+        </div>
+        <p style="font-size:12px;color:#9ca3af;">
+          This invite expires in 7 days. If you didn't expect this, you can ignore this email.
+        </p>
+      </div>
+    `,
+  });
+}
+
 export async function sendRequestStatusEmail(opts: {
   to: string;
   requesterName: string;

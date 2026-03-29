@@ -95,6 +95,23 @@ CREATE TABLE IF NOT EXISTS job_usage_snapshots (
 
 CREATE INDEX IF NOT EXISTS idx_job_snapshots_job ON job_usage_snapshots(job_id, sampled_at);
 
+-- Phase 10: Invite System
+CREATE TABLE IF NOT EXISTS invites (
+  id             TEXT PRIMARY KEY,
+  token          TEXT NOT NULL UNIQUE,
+  inviter_id     TEXT NOT NULL REFERENCES users(id),
+  invitee_email  TEXT NOT NULL,
+  accepted_by_user_id TEXT REFERENCES users(id),
+  status         TEXT NOT NULL DEFAULT 'pending',
+  -- pending | accepted | expired
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at     TIMESTAMPTZ NOT NULL,
+  accepted_at    TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_invites_token   ON invites(token);
+CREATE INDEX IF NOT EXISTS idx_invites_inviter ON invites(inviter_id);
+
 -- Seed data (idempotent via ON CONFLICT DO NOTHING)
 INSERT INTO users (id, name, email, created_at) VALUES
   ('user-1', 'Alice Chen', 'alice@example.com', '2026-03-01T00:00:00.000Z'),

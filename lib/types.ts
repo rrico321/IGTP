@@ -84,6 +84,18 @@ export interface JobUsageSnapshot {
   ramUsedGb: number | null;
 }
 
+export interface Invite {
+  id: string;
+  token: string;
+  inviterId: string;
+  inviteeEmail: string;
+  acceptedByUserId: string | null;
+  status: "pending" | "accepted" | "expired";
+  createdAt: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+}
+
 export interface UsageReport {
   userId: string;
   from: string;

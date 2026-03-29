@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-import type { Machine, AccessRequest, User, TrustConnection, Notification, GpuJob, JobUsageSnapshot, UsageReport } from "./types";
+import type { Machine, AccessRequest, User, TrustConnection, Notification, GpuJob, JobUsageSnapshot, UsageReport, Invite } from "./types";
 
 function getSql() {
   const url = process.env.DATABASE_URL;
@@ -202,6 +202,18 @@ export async function createUser(name: string): Promise<User> {
   const rows = await sql`
     INSERT INTO users (id, name, email, created_at)
     VALUES (${id}, ${name}, ${slug + "@example.com"}, ${now})
+    RETURNING id, name, email, created_at AS "createdAt"
+  `;
+  return rows[0] as User;
+}
+
+export async function createUserWithEmail(name: string, email: string): Promise<User> {
+  const sql = getSql();
+  const id = `user-${Date.now()}`;
+  const now = new Date().toISOString();
+  const rows = await sql`
+    INSERT INTO users (id, name, email, created_at)
+    VALUES (${id}, ${name}, ${email}, ${now})
     RETURNING id, name, email, created_at AS "createdAt"
   `;
   return rows[0] as User;
@@ -596,4 +608,98 @@ export async function getUsageReport(
       runtimeSec: v.runtimeSec,
     })),
   };
+}
+
+// ─── Invites ──────────────────────────────────────────────────────────────────
+
+const INVITE_COLS = `
+  id,
+  token,
+  inviter_id              AS "inviterId",
+  invitee_email           AS "inviteeEmail",
+  accepted_by_user_id     AS "acceptedByUserId",
+  status,
+  created_at              AS "createdAt",
+  expires_at              AS "expiresAt",
+  accepted_at             AS "acceptedAt"
+`;
+
+export async function createInvite(
+  inviterId: string,
+  inviteeEmail: string
+): Promise<Invite> {
+  const sql = getSql();
+  const id = `invite-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const token = `${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+  const rows = await sql`
+    INSERT INTO invites (id, token, inviter_id, invitee_email, status, created_at, expires_at)
+    VALUES (${id}, ${token}, ${inviterId}, ${inviteeEmail}, 'pending', ${now.toISOString()}, ${expiresAt.toISOString()})
+    RETURNING ${sql.unsafe(INVITE_COLS)}
+  `;
+  return rows[0] as Invite;
+}
+
+export async function getInviteByToken(token: string): Promise<Invite | undefined> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(INVITE_COLS)} FROM invites WHERE token = ${token}
+  `;
+  return rows[0] as Invite | undefined;
+}
+
+export async function getInvitesByInviter(inviterId: string): Promise<Invite[]> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(INVITE_COLS)} FROM invites
+    WHERE inviter_id = ${inviterId}
+    ORDER BY created_at DESC
+  `;
+  return rows as Invite[];
+}
+
+export async function acceptInvite(
+  token: string,
+  acceptedByUserId: string
+): Promise<Invite | null> {
+  const sql = getSql();
+  const now = new Date().toISOString();
+  const rows = await sql`
+    UPDATE invites SET
+      status               = 'accepted',
+      accepted_by_user_id  = ${acceptedByUserId},
+      accepted_at          = ${now}
+    WHERE token = ${token}
+      AND status = 'pending'
+      AND expires_at > NOW()
+    RETURNING ${sql.unsafe(INVITE_COLS)}
+  `;
+  return rows.length > 0 ? (rows[0] as Invite) : null;
+}
+
+/** Returns all users who were directly invited by this user (accepted invites). */
+export async function getReferralsByInviter(inviterId: string): Promise<User[]> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT u.id, u.name, u.email, u.created_at AS "createdAt"
+    FROM invites i
+    JOIN users u ON u.id = i.accepted_by_user_id
+    WHERE i.inviter_id = ${inviterId} AND i.status = 'accepted'
+    ORDER BY i.accepted_at ASC
+  `;
+  return rows as User[];
+}
+
+/** Returns the inviter of a given user (who invited them), if any. */
+export async function getInviterOfUser(userId: string): Promise<User | undefined> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT u.id, u.name, u.email, u.created_at AS "createdAt"
+    FROM invites i
+    JOIN users u ON u.id = i.inviter_id
+    WHERE i.accepted_by_user_id = ${userId} AND i.status = 'accepted'
+    LIMIT 1
+  `;
+  return rows[0] as User | undefined;
 }

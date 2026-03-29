@@ -10,7 +10,8 @@ const NAV_LINKS = [
   { href: '/machines', label: 'My Machines' },
   { href: '/requests', label: 'My Requests' },
   { href: '/jobs', label: 'Jobs' },
-  { href: '/settings/trust', label: 'Trust' },
+  { href: '/network', label: 'Network' },
+  { href: '/settings/invites', label: 'Invite' },
 ]
 
 interface MobileNavProps {

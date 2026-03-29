@@ -1,10 +1,61 @@
 import Link from 'next/link'
 import { getMachines, getTrustedUserIds } from '@/lib/db'
-import { requireUserId } from '@/lib/auth'
+import { getCurrentUserId } from '@/lib/auth'
 import { MachineStatusBadge } from './components/StatusBadge'
 
-export default async function HomePage() {
-  const userId = await requireUserId()
+// Public landing shown to unauthenticated visitors
+function LandingPage() {
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-16">
+      <div className="max-w-xl">
+        <h1 className="text-4xl font-bold tracking-tight mb-4">
+          I Got The Power
+        </h1>
+        <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
+          Share and access GPU compute with people you trust.
+          No middlemen — just you and your network.
+        </p>
+
+        <div className="flex gap-3 mb-16">
+          <Link
+            href="/login"
+            className="px-5 py-2.5 text-sm font-medium bg-foreground text-background rounded-lg hover:bg-foreground/90 transition-colors"
+          >
+            Sign in
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            {
+              title: "Peer-to-peer compute",
+              body: "Borrow GPU time directly from friends. No cloud markup.",
+            },
+            {
+              title: "Trust-based access",
+              body: "Only people you explicitly trust can request your machines.",
+            },
+            {
+              title: "Invite-only network",
+              body: "Join via invite and instantly connect with your inviter's resources.",
+            },
+          ].map(({ title, body }) => (
+            <div
+              key={title}
+              className="bg-card border border-border rounded-xl p-4 ring-1 ring-foreground/5"
+            >
+              <div className="font-medium text-sm text-foreground mb-1">{title}</div>
+              <div className="text-xs text-muted-foreground leading-relaxed">{body}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Authenticated home shown to signed-in users
+async function AuthenticatedHome({ userId }: { userId: string }) {
   const [trustedIds, allMachines] = await Promise.all([
     getTrustedUserIds(userId),
     getMachines(),
@@ -16,7 +67,6 @@ export default async function HomePage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
-      {/* Hero */}
       <div className="mb-12">
         <h1 className="text-3xl font-bold tracking-tight mb-2">I Got The Power</h1>
         <p className="text-muted-foreground text-sm">
@@ -24,7 +74,6 @@ export default async function HomePage() {
         </p>
       </div>
 
-      {/* Featured available machines from trust network */}
       {featured.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-4">
@@ -71,10 +120,10 @@ export default async function HomePage() {
           <div className="flex justify-center gap-4 text-sm">
             {trustedIds.length === 0 && (
               <Link
-                href="/settings/trust"
+                href="/settings/invites"
                 className="text-foreground underline underline-offset-4 hover:text-foreground/80"
               >
-                Manage trust network →
+                Invite someone →
               </Link>
             )}
             <Link
@@ -88,4 +137,10 @@ export default async function HomePage() {
       )}
     </div>
   )
+}
+
+export default async function HomePage() {
+  const userId = await getCurrentUserId()
+  if (!userId) return <LandingPage />
+  return <AuthenticatedHome userId={userId} />
 }
