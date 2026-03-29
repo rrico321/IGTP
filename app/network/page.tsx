@@ -1,5 +1,6 @@
 import { requireUserId } from "@/lib/auth";
 import { getUsers, getTrustConnections } from "@/lib/db";
+import { AddFriendButton, RemoveFriendButton, InviteByEmail } from "./NetworkActions";
 
 const W = 560;
 const H = 420;
@@ -31,11 +32,12 @@ export default async function NetworkPage() {
     getTrustConnections(),
   ]);
 
+  // Current user's outgoing trust connections
+  const connections = allConnections.filter((c) => c.userId === userId);
+
   // Build set of user ids connected (directly or indirectly) to the current user
   const directTrustedIds = new Set(
-    allConnections
-      .filter((c) => c.userId === userId)
-      .map((c) => c.trustedUserId)
+    connections.map((c) => c.trustedUserId)
   );
   const trustedByIds = new Set(
     allConnections
@@ -77,6 +79,11 @@ export default async function NetworkPage() {
     allConnections.some((c) => c.userId === a && c.trustedUserId === b) &&
     allConnections.some((c) => c.userId === b && c.trustedUserId === a);
 
+  // Compute "other users" not in network
+  const trustedIds = new Set(connections.map((c) => c.trustedUserId));
+  const otherUsers = allUsers.filter((u) => u.id !== userId && !trustedIds.has(u.id));
+  const userMap = new Map(allUsers.map((u) => [u.id, u]));
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="mb-6">
@@ -87,7 +94,7 @@ export default async function NetworkPage() {
       </div>
 
       {nodes.length <= 1 ? (
-        <div className="text-center py-16 border border-border rounded-xl bg-card/30">
+        <div className="text-center px-8 py-16 border border-border rounded-xl bg-card/30">
           <p className="text-muted-foreground text-sm mb-3">
             Your network is empty. Invite friends or add trusted users to see the graph here.
           </p>
@@ -189,6 +196,67 @@ export default async function NetworkPage() {
           </div>
           <div className="text-xs text-muted-foreground mt-0.5">Mutual</div>
         </div>
+      </div>
+
+      {/* Your Trusted People */}
+      <div className="mt-10">
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-3">
+          Your Trusted People ({connections.length})
+        </h2>
+        {connections.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No one in your network yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {connections.map((conn) => {
+              const trusted = userMap.get(conn.trustedUserId);
+              return (
+                <div key={conn.id} className="flex items-center justify-between gap-4 bg-card border border-border rounded-xl px-5 py-3 ring-1 ring-foreground/5">
+                  <div>
+                    <div className="font-medium text-sm text-foreground">{trusted?.name ?? conn.trustedUserId}</div>
+                    {trusted?.email && <div className="text-xs text-muted-foreground">{trusted.email}</div>}
+                  </div>
+                  <RemoveFriendButton connectionId={conn.id} />
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* People on IGTP */}
+      <div className="mt-10">
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-3">
+          People on IGTP
+        </h2>
+        <p className="text-xs text-muted-foreground mb-3">
+          Add people to your network so you can see their machines and they can see yours.
+        </p>
+        {otherUsers.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Everyone on IGTP is already in your network!</p>
+        ) : (
+          <div className="space-y-2">
+            {otherUsers.map((user) => (
+              <div key={user.id} className="flex items-center justify-between gap-4 bg-card border border-border rounded-xl px-5 py-3 ring-1 ring-foreground/5">
+                <div>
+                  <div className="font-medium text-sm text-foreground">{user.name}</div>
+                  <div className="text-xs text-muted-foreground">{user.email}</div>
+                </div>
+                <AddFriendButton userId={user.id} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Invite by Email */}
+      <div className="mt-10">
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-3">
+          Invite Someone New
+        </h2>
+        <p className="text-xs text-muted-foreground mb-3">
+          Know someone who isn't on IGTP yet? Send them an email invite. When they join, you'll both be added to each other's network.
+        </p>
+        <InviteByEmail />
       </div>
     </div>
   );

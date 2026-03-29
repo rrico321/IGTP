@@ -25,24 +25,31 @@ export async function POST(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { email, name } = body as { email?: string; name?: string }
+  const { email, name, trustedUserId } = body as { email?: string; name?: string; trustedUserId?: string }
 
-  const users = await getUsers()
-  let target = email
-    ? users.find((u) => u.email.toLowerCase() === email.toLowerCase())
-    : name
-    ? users.find((u) => u.name.toLowerCase() === name.toLowerCase())
-    : undefined
+  let targetId: string | undefined
 
-  if (!target) {
-    return NextResponse.json({ error: 'User not found.' }, { status: 404 })
+  if (trustedUserId) {
+    targetId = trustedUserId
+  } else {
+    const users = await getUsers()
+    const target = email
+      ? users.find((u) => u.email.toLowerCase() === email.toLowerCase())
+      : name
+      ? users.find((u) => u.name.toLowerCase() === name.toLowerCase())
+      : undefined
+
+    if (!target) {
+      return NextResponse.json({ error: 'User not found.' }, { status: 404 })
+    }
+    targetId = target.id
   }
 
-  if (target.id === userId) {
+  if (targetId === userId) {
     return NextResponse.json({ error: 'Cannot trust yourself.' }, { status: 400 })
   }
 
-  const connection = await addTrustConnection(userId, target.id)
+  const connection = await addTrustConnection(userId, targetId)
   if (!connection) {
     return NextResponse.json({ error: 'Already trusted.' }, { status: 409 })
   }
