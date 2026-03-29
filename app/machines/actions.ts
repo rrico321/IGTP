@@ -45,6 +45,8 @@ export async function createMachineAction(
     ramGb,
     status: 'available',
     ownerId: userId,
+    a1111Enabled: false,
+    a1111Available: false,
   })
 
   revalidatePath('/machines')

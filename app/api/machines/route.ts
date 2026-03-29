@@ -45,6 +45,8 @@ export async function POST(request: NextRequest) {
     ramGb: Number(ramGb),
     status: "available",
     ownerId: userId,
+    a1111Enabled: false,
+    a1111Available: false,
   });
 
   return Response.json(machine, { status: 201 });
