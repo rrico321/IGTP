@@ -11,9 +11,10 @@ const STATUS_CLASSES: Record<Machine['status'], string> = {
 
 export default async function HomePage() {
   const userId = await requireUserId()
-  const trustedIds = getTrustedUserIds(userId)
-
-  const allMachines = getMachines()
+  const [trustedIds, allMachines] = await Promise.all([
+    getTrustedUserIds(userId),
+    getMachines(),
+  ])
   const trustedMachines = allMachines.filter(
     (m) => m.status === 'available' && trustedIds.includes(m.ownerId)
   )

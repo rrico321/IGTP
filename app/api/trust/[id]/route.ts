@@ -16,7 +16,7 @@ export async function DELETE(
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const removed = removeTrustConnection(id, userId)
+  const removed = await removeTrustConnection(id, userId)
   if (!removed) return NextResponse.json({ error: 'Not found.' }, { status: 404 })
 
   return new NextResponse(null, { status: 204 })

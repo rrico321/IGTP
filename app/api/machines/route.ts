@@ -3,7 +3,7 @@ import { getMachines, createMachine } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  let machines = getMachines();
+  let machines = await getMachines();
 
   const status = searchParams.get("status");
   if (status) {
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const machine = createMachine({
+  const machine = await createMachine({
     name,
     description: description ?? "",
     gpuModel,

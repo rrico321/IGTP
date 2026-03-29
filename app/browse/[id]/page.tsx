@@ -26,10 +26,10 @@ export default async function BrowseMachineDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const machine = getMachineById(id)
+  const machine = await getMachineById(id)
   if (!machine) notFound()
 
-  const owner = getUserById(machine.ownerId)
+  const owner = await getUserById(machine.ownerId)
   const isOwner = machine.ownerId === CURRENT_USER_ID
   const canRequest = machine.status === 'available' && !isOwner
 

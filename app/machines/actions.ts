@@ -36,7 +36,7 @@ export async function createMachineAction(
     return { error: 'All required fields must be filled in.' }
   }
 
-  dbCreate({
+  await dbCreate({
     name,
     description,
     gpuModel,
@@ -57,10 +57,10 @@ export async function updateMachineStatusAction(
   _formData: FormData
 ): Promise<void> {
   const userId = await requireUserId()
-  const machine = getMachineById(id)
+  const machine = await getMachineById(id)
   if (!machine || machine.ownerId !== userId) return
 
-  dbUpdate(id, { status: status as 'available' | 'busy' | 'offline' })
+  await dbUpdate(id, { status: status as 'available' | 'busy' | 'offline' })
   revalidatePath('/machines')
   revalidatePath(`/machines/${id}`)
 }
@@ -71,7 +71,7 @@ export async function updateMachineAction(
   formData: FormData
 ): Promise<ActionState> {
   const userId = await requireUserId()
-  const machine = getMachineById(id)
+  const machine = await getMachineById(id)
   if (!machine || machine.ownerId !== userId) {
     return { error: 'Not authorized to edit this machine.' }
   }
@@ -87,7 +87,7 @@ export async function updateMachineAction(
     return { error: 'All required fields must be filled in.' }
   }
 
-  dbUpdate(id, { name, description, gpuModel, vramGb, cpuModel, ramGb })
+  await dbUpdate(id, { name, description, gpuModel, vramGb, cpuModel, ramGb })
   revalidatePath('/machines')
   revalidatePath(`/machines/${id}`)
   redirect(`/machines/${id}`)

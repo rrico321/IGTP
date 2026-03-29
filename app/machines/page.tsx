@@ -18,7 +18,7 @@ const NEXT_STATUS: Record<Machine['status'], Machine['status']> = {
 
 export default async function MachinesPage() {
   const userId = await requireUserId()
-  const machines = getMachines().filter((m) => m.ownerId === userId)
+  const machines = (await getMachines()).filter((m) => m.ownerId === userId)
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">

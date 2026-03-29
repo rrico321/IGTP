@@ -1,159 +1,289 @@
-import fs from "fs";
-import path from "path";
+import { neon } from "@neondatabase/serverless";
 import type { Machine, AccessRequest, User, TrustConnection } from "./types";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-
-function readFile<T>(filename: string): T[] {
-  const filepath = path.join(DATA_DIR, filename);
-  if (!fs.existsSync(filepath)) return [];
-  const raw = fs.readFileSync(filepath, "utf-8");
-  return JSON.parse(raw) as T[];
+function getSql() {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_URL environment variable is not set");
+  return neon(url);
 }
 
-function writeFile<T>(filename: string, data: T[]): void {
-  const filepath = path.join(DATA_DIR, filename);
-  fs.writeFileSync(filepath, JSON.stringify(data, null, 2), "utf-8");
+// ─── Machines ────────────────────────────────────────────────────────────────
+
+export async function getMachines(): Promise<Machine[]> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT id, name, description,
+           gpu_model    AS "gpuModel",
+           vram_gb      AS "vramGb",
+           cpu_model    AS "cpuModel",
+           ram_gb       AS "ramGb",
+           status,
+           owner_id     AS "ownerId",
+           created_at   AS "createdAt",
+           updated_at   AS "updatedAt"
+    FROM machines
+    ORDER BY created_at DESC
+  `;
+  return rows as Machine[];
 }
 
-// Machines
-export function getMachines(): Machine[] {
-  return readFile<Machine>("machines.json");
+export async function getMachineById(id: string): Promise<Machine | undefined> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT id, name, description,
+           gpu_model    AS "gpuModel",
+           vram_gb      AS "vramGb",
+           cpu_model    AS "cpuModel",
+           ram_gb       AS "ramGb",
+           status,
+           owner_id     AS "ownerId",
+           created_at   AS "createdAt",
+           updated_at   AS "updatedAt"
+    FROM machines WHERE id = ${id}
+  `;
+  return rows[0] as Machine | undefined;
 }
 
-export function getMachineById(id: string): Machine | undefined {
-  return getMachines().find((m) => m.id === id);
+export async function createMachine(
+  data: Omit<Machine, "id" | "createdAt" | "updatedAt">
+): Promise<Machine> {
+  const sql = getSql();
+  const id = `machine-${Date.now()}`;
+  const now = new Date().toISOString();
+  const rows = await sql`
+    INSERT INTO machines (id, name, description, gpu_model, vram_gb, cpu_model, ram_gb, status, owner_id, created_at, updated_at)
+    VALUES (${id}, ${data.name}, ${data.description}, ${data.gpuModel}, ${data.vramGb},
+            ${data.cpuModel}, ${data.ramGb}, ${data.status}, ${data.ownerId}, ${now}, ${now})
+    RETURNING id, name, description,
+              gpu_model  AS "gpuModel",
+              vram_gb    AS "vramGb",
+              cpu_model  AS "cpuModel",
+              ram_gb     AS "ramGb",
+              status,
+              owner_id   AS "ownerId",
+              created_at AS "createdAt",
+              updated_at AS "updatedAt"
+  `;
+  return rows[0] as Machine;
 }
 
-export function createMachine(data: Omit<Machine, "id" | "createdAt" | "updatedAt">): Machine {
-  const machines = getMachines();
-  const machine: Machine = {
-    ...data,
-    id: `machine-${Date.now()}`,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-  machines.push(machine);
-  writeFile("machines.json", machines);
-  return machine;
+export async function updateMachine(
+  id: string,
+  updates: Partial<Omit<Machine, "id" | "createdAt">>
+): Promise<Machine | null> {
+  const existing = await getMachineById(id);
+  if (!existing) return null;
+
+  const sql = getSql();
+  const now = new Date().toISOString();
+  const merged = { ...existing, ...updates };
+  const rows = await sql`
+    UPDATE machines SET
+      name        = ${merged.name},
+      description = ${merged.description},
+      gpu_model   = ${merged.gpuModel},
+      vram_gb     = ${merged.vramGb},
+      cpu_model   = ${merged.cpuModel},
+      ram_gb      = ${merged.ramGb},
+      status      = ${merged.status},
+      updated_at  = ${now}
+    WHERE id = ${id}
+    RETURNING id, name, description,
+              gpu_model  AS "gpuModel",
+              vram_gb    AS "vramGb",
+              cpu_model  AS "cpuModel",
+              ram_gb     AS "ramGb",
+              status,
+              owner_id   AS "ownerId",
+              created_at AS "createdAt",
+              updated_at AS "updatedAt"
+  `;
+  return rows[0] as Machine;
 }
 
-export function updateMachine(id: string, updates: Partial<Omit<Machine, "id" | "createdAt">>): Machine | null {
-  const machines = getMachines();
-  const idx = machines.findIndex((m) => m.id === id);
-  if (idx === -1) return null;
-  machines[idx] = { ...machines[idx], ...updates, updatedAt: new Date().toISOString() };
-  writeFile("machines.json", machines);
-  return machines[idx];
+// ─── Access Requests ──────────────────────────────────────────────────────────
+
+const REQUEST_COLS = `
+  id,
+  machine_id    AS "machineId",
+  requester_id  AS "requesterId",
+  purpose,
+  estimated_hours AS "estimatedHours",
+  status,
+  owner_note    AS "ownerNote",
+  created_at    AS "createdAt",
+  updated_at    AS "updatedAt"
+`;
+
+export async function getRequests(): Promise<AccessRequest[]> {
+  const sql = getSql();
+  const rows = await sql`SELECT ${sql.unsafe(REQUEST_COLS)} FROM access_requests ORDER BY created_at DESC`;
+  return rows as AccessRequest[];
 }
 
-// Access Requests
-export function getRequests(): AccessRequest[] {
-  return readFile<AccessRequest>("requests.json");
+export async function getRequestById(id: string): Promise<AccessRequest | undefined> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(REQUEST_COLS)} FROM access_requests WHERE id = ${id}
+  `;
+  return rows[0] as AccessRequest | undefined;
 }
 
-export function getRequestById(id: string): AccessRequest | undefined {
-  return getRequests().find((r) => r.id === id);
+export async function getRequestsByMachine(machineId: string): Promise<AccessRequest[]> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(REQUEST_COLS)} FROM access_requests
+    WHERE machine_id = ${machineId}
+    ORDER BY created_at DESC
+  `;
+  return rows as AccessRequest[];
 }
 
-export function getRequestsByMachine(machineId: string): AccessRequest[] {
-  return getRequests().filter((r) => r.machineId === machineId);
+export async function getRequestsByRequester(requesterId: string): Promise<AccessRequest[]> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(REQUEST_COLS)} FROM access_requests
+    WHERE requester_id = ${requesterId}
+    ORDER BY created_at DESC
+  `;
+  return rows as AccessRequest[];
 }
 
-export function getRequestsByRequester(requesterId: string): AccessRequest[] {
-  return getRequests().filter((r) => r.requesterId === requesterId);
+export async function createRequest(
+  data: Omit<AccessRequest, "id" | "status" | "createdAt" | "updatedAt">
+): Promise<AccessRequest> {
+  const sql = getSql();
+  const id = `request-${Date.now()}`;
+  const now = new Date().toISOString();
+  const rows = await sql`
+    INSERT INTO access_requests (id, machine_id, requester_id, purpose, estimated_hours, status, owner_note, created_at, updated_at)
+    VALUES (${id}, ${data.machineId}, ${data.requesterId}, ${data.purpose}, ${data.estimatedHours},
+            'pending', ${data.ownerNote ?? null}, ${now}, ${now})
+    RETURNING ${sql.unsafe(REQUEST_COLS)}
+  `;
+  return rows[0] as AccessRequest;
 }
 
-export function createRequest(data: Omit<AccessRequest, "id" | "status" | "createdAt" | "updatedAt">): AccessRequest {
-  const requests = getRequests();
-  const request: AccessRequest = {
-    ...data,
-    id: `request-${Date.now()}`,
-    status: "pending",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-  requests.push(request);
-  writeFile("requests.json", requests);
-  return request;
-}
-
-export function updateRequest(
+export async function updateRequest(
   id: string,
   updates: Partial<Omit<AccessRequest, "id" | "machineId" | "requesterId" | "createdAt">>
-): AccessRequest | null {
-  const requests = getRequests();
-  const idx = requests.findIndex((r) => r.id === id);
-  if (idx === -1) return null;
-  requests[idx] = { ...requests[idx], ...updates, updatedAt: new Date().toISOString() };
-  writeFile("requests.json", requests);
-  return requests[idx];
+): Promise<AccessRequest | null> {
+  const existing = await getRequestById(id);
+  if (!existing) return null;
+
+  const sql = getSql();
+  const now = new Date().toISOString();
+  const merged = { ...existing, ...updates };
+  const rows = await sql`
+    UPDATE access_requests SET
+      purpose         = ${merged.purpose},
+      estimated_hours = ${merged.estimatedHours},
+      status          = ${merged.status},
+      owner_note      = ${merged.ownerNote ?? null},
+      updated_at      = ${now}
+    WHERE id = ${id}
+    RETURNING ${sql.unsafe(REQUEST_COLS)}
+  `;
+  return rows[0] as AccessRequest;
 }
 
-// Users
-export function getUsers(): User[] {
-  return readFile<User>("users.json");
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+export async function getUsers(): Promise<User[]> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT id, name, email, created_at AS "createdAt"
+    FROM users ORDER BY created_at ASC
+  `;
+  return rows as User[];
 }
 
-export function getUserById(id: string): User | undefined {
-  return getUsers().find((u) => u.id === id);
+export async function getUserById(id: string): Promise<User | undefined> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT id, name, email, created_at AS "createdAt"
+    FROM users WHERE id = ${id}
+  `;
+  return rows[0] as User | undefined;
 }
 
-export function getUserByEmail(email: string): User | undefined {
-  return getUsers().find((u) => u.email.toLowerCase() === email.toLowerCase());
+export async function getUserByEmail(email: string): Promise<User | undefined> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT id, name, email, created_at AS "createdAt"
+    FROM users WHERE LOWER(email) = LOWER(${email})
+  `;
+  return rows[0] as User | undefined;
 }
 
-export function createUser(name: string): User {
-  const users = getUsers();
+export async function createUser(name: string): Promise<User> {
+  const sql = getSql();
   const slug = name.toLowerCase().replace(/\s+/g, ".");
-  const user: User = {
-    id: `user-${Date.now()}`,
-    name,
-    email: `${slug}@example.com`,
-    createdAt: new Date().toISOString(),
-  };
-  users.push(user);
-  writeFile("users.json", users);
-  return user;
+  const id = `user-${Date.now()}`;
+  const now = new Date().toISOString();
+  const rows = await sql`
+    INSERT INTO users (id, name, email, created_at)
+    VALUES (${id}, ${name}, ${slug + "@example.com"}, ${now})
+    RETURNING id, name, email, created_at AS "createdAt"
+  `;
+  return rows[0] as User;
 }
 
-// Trust Connections
-export function getTrustConnections(): TrustConnection[] {
-  return readFile<TrustConnection>("trust.json");
+// ─── Trust Connections ────────────────────────────────────────────────────────
+
+export async function getTrustConnections(): Promise<TrustConnection[]> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT id, user_id AS "userId", trusted_user_id AS "trustedUserId", created_at AS "createdAt"
+    FROM trust_connections ORDER BY created_at ASC
+  `;
+  return rows as TrustConnection[];
 }
 
-export function getTrustedUserIds(userId: string): string[] {
-  return getTrustConnections()
-    .filter((t) => t.userId === userId)
-    .map((t) => t.trustedUserId);
+export async function getTrustedUserIds(userId: string): Promise<string[]> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT trusted_user_id FROM trust_connections WHERE user_id = ${userId}
+  `;
+  return rows.map((r) => r.trusted_user_id as string);
 }
 
-export function isTrusted(userId: string, trustedUserId: string): boolean {
-  return getTrustConnections().some(
-    (t) => t.userId === userId && t.trustedUserId === trustedUserId
-  );
+export async function isTrusted(userId: string, trustedUserId: string): Promise<boolean> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT 1 FROM trust_connections
+    WHERE user_id = ${userId} AND trusted_user_id = ${trustedUserId}
+    LIMIT 1
+  `;
+  return rows.length > 0;
 }
 
-export function addTrustConnection(userId: string, trustedUserId: string): TrustConnection | null {
+export async function addTrustConnection(
+  userId: string,
+  trustedUserId: string
+): Promise<TrustConnection | null> {
   if (userId === trustedUserId) return null;
-  if (isTrusted(userId, trustedUserId)) return null;
-  const connections = getTrustConnections();
-  const connection: TrustConnection = {
-    id: `trust-${Date.now()}`,
-    userId,
-    trustedUserId,
-    createdAt: new Date().toISOString(),
-  };
-  connections.push(connection);
-  writeFile("trust.json", connections);
-  return connection;
+  const already = await isTrusted(userId, trustedUserId);
+  if (already) return null;
+
+  const sql = getSql();
+  const id = `trust-${Date.now()}`;
+  const now = new Date().toISOString();
+  const rows = await sql`
+    INSERT INTO trust_connections (id, user_id, trusted_user_id, created_at)
+    VALUES (${id}, ${userId}, ${trustedUserId}, ${now})
+    ON CONFLICT (user_id, trusted_user_id) DO NOTHING
+    RETURNING id, user_id AS "userId", trusted_user_id AS "trustedUserId", created_at AS "createdAt"
+  `;
+  return rows.length > 0 ? (rows[0] as TrustConnection) : null;
 }
 
-export function removeTrustConnection(id: string, userId: string): boolean {
-  const connections = getTrustConnections();
-  const idx = connections.findIndex((t) => t.id === id && t.userId === userId);
-  if (idx === -1) return false;
-  connections.splice(idx, 1);
-  writeFile("trust.json", connections);
-  return true;
+export async function removeTrustConnection(id: string, userId: string): Promise<boolean> {
+  const sql = getSql();
+  const rows = await sql`
+    DELETE FROM trust_connections
+    WHERE id = ${id} AND user_id = ${userId}
+    RETURNING id
+  `;
+  return rows.length > 0;
 }

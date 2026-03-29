@@ -1,8 +1,8 @@
 import Link from 'next/link'
-import { getMachines, getUserById, getTrustedUserIds } from '@/lib/db'
+import { getMachines, getUsers, getTrustedUserIds } from '@/lib/db'
 import { requireUserId } from '@/lib/auth'
 import { BrowseFilters } from './BrowseFilters'
-import type { Machine } from '@/lib/types'
+import type { Machine, User } from '@/lib/types'
 
 const STATUS_CLASSES: Record<Machine['status'], string> = {
   available: 'bg-green-900/50 text-green-400 border border-green-800',
@@ -18,9 +18,14 @@ export default async function BrowsePage({
   const userId = await requireUserId()
   const { q, gpuModel, minVram, showAll } = await searchParams
 
-  const trustedIds = getTrustedUserIds(userId)
+  const [trustedIds, allMachines, allUsers] = await Promise.all([
+    getTrustedUserIds(userId),
+    getMachines(),
+    getUsers(),
+  ])
+  const userMap = new Map<string, User>(allUsers.map((u) => [u.id, u]))
 
-  let machines = getMachines().filter((m) => trustedIds.includes(m.ownerId))
+  let machines = allMachines.filter((m) => trustedIds.includes(m.ownerId))
 
   // Default: available only
   if (showAll !== '1') {
@@ -89,7 +94,7 @@ export default async function BrowsePage({
         {trustedIds.length > 0 && machines.length > 0 && (
           <div className="space-y-3 mt-6">
             {machines.map((machine) => {
-              const owner = getUserById(machine.ownerId)
+              const owner = userMap.get(machine.ownerId)
               return (
                 <Link
                   key={machine.id}

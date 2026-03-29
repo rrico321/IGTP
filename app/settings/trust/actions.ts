@@ -15,7 +15,7 @@ export async function addTrustAction(
 
   if (!query) return { error: 'Enter an email or name.' }
 
-  const users = getUsers()
+  const users = await getUsers()
   const target = users.find(
     (u) =>
       u.email.toLowerCase() === query ||
@@ -25,7 +25,7 @@ export async function addTrustAction(
   if (!target) return { error: 'No user found with that email or name.' }
   if (target.id === userId) return { error: 'You cannot trust yourself.' }
 
-  const connection = addTrustConnection(userId, target.id)
+  const connection = await addTrustConnection(userId, target.id)
   if (!connection) return { error: `${target.name} is already in your trust network.` }
 
   revalidatePath('/settings/trust')
@@ -35,7 +35,7 @@ export async function addTrustAction(
 
 export async function removeTrustAction(connectionId: string): Promise<void> {
   const userId = await requireUserId()
-  removeTrustConnection(connectionId, userId)
+  await removeTrustConnection(connectionId, userId)
   revalidatePath('/settings/trust')
   revalidatePath('/browse')
 }

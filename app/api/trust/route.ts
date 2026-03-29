@@ -16,7 +16,7 @@ export async function GET() {
   const userId = await getSessionUserId()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const connections = getTrustConnections().filter((t) => t.userId === userId)
+  const connections = (await getTrustConnections()).filter((t) => t.userId === userId)
   return NextResponse.json(connections)
 }
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
   const { email, name } = body as { email?: string; name?: string }
 
-  const users = getUsers()
+  const users = await getUsers()
   let target = email
     ? users.find((u) => u.email.toLowerCase() === email.toLowerCase())
     : name
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Cannot trust yourself.' }, { status: 400 })
   }
 
-  const connection = addTrustConnection(userId, target.id)
+  const connection = await addTrustConnection(userId, target.id)
   if (!connection) {
     return NextResponse.json({ error: 'Already trusted.' }, { status: 409 })
   }

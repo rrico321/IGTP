@@ -12,6 +12,6 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const requests = getRequestsByRequester(requesterId);
+  const requests = await getRequestsByRequester(requesterId);
   return Response.json(requests);
 }

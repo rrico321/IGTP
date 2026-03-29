@@ -12,10 +12,10 @@ export async function updateRequestStatusAction(
   _formData: FormData
 ): Promise<void> {
   const userId = await requireUserId()
-  const machine = getMachineById(machineId)
+  const machine = await getMachineById(machineId)
   if (!machine || machine.ownerId !== userId) return
 
-  updateRequest(requestId, { status })
+  await updateRequest(requestId, { status })
   revalidatePath(`/machines/${machineId}/requests`)
   revalidatePath('/requests')
 }

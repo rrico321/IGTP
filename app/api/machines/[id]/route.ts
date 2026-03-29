@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const machine = getMachineById(id);
+  const machine = await getMachineById(id);
   if (!machine) {
     return Response.json({ error: "Machine not found" }, { status: 404 });
   }
@@ -18,7 +18,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const machine = getMachineById(id);
+  const machine = await getMachineById(id);
   if (!machine) {
     return Response.json({ error: "Machine not found" }, { status: 404 });
   }
@@ -30,6 +30,6 @@ export async function PATCH(
     if (key in body) updates[key] = body[key];
   }
 
-  const updated = updateMachine(id, updates);
+  const updated = await updateMachine(id, updates);
   return Response.json(updated);
 }

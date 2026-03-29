@@ -6,7 +6,7 @@ import { LogoutButton } from './LogoutButton'
 export async function NavBar() {
   const userId = await getCurrentUserId()
   if (!userId) return null
-  const user = getUserById(userId)
+  const user = await getUserById(userId)
   if (!user) return null
 
   return (

@@ -6,7 +6,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const existing = getRequestById(id);
+  const existing = await getRequestById(id);
   if (!existing) {
     return Response.json({ error: "Request not found" }, { status: 404 });
   }
@@ -23,6 +23,6 @@ export async function PATCH(
   if (status) updates.status = status;
   if (ownerNote !== undefined) updates.ownerNote = ownerNote;
 
-  const updated = updateRequest(id, updates);
+  const updated = await updateRequest(id, updates);
   return Response.json(updated);
 }

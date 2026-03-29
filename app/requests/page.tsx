@@ -1,7 +1,7 @@
 import Link from 'next/link'
-import { getRequestsByRequester, getMachineById } from '@/lib/db'
+import { getRequestsByRequester, getMachines } from '@/lib/db'
 import { requireUserId } from '@/lib/auth'
-import type { AccessRequest } from '@/lib/types'
+import type { AccessRequest, Machine } from '@/lib/types'
 
 const STATUS_CLASSES: Record<AccessRequest['status'], string> = {
   pending: 'bg-yellow-900/50 text-yellow-400 border border-yellow-800',
@@ -13,7 +13,11 @@ const STATUS_CLASSES: Record<AccessRequest['status'], string> = {
 
 export default async function RequestsPage() {
   const userId = await requireUserId()
-  const requests = getRequestsByRequester(userId)
+  const [requests, allMachines] = await Promise.all([
+    getRequestsByRequester(userId),
+    getMachines(),
+  ])
+  const machineMap = new Map<string, Machine>(allMachines.map((m) => [m.id, m]))
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -47,7 +51,7 @@ export default async function RequestsPage() {
         {requests.length > 0 && (
           <div className="space-y-3">
             {requests.map((request) => {
-              const machine = getMachineById(request.machineId)
+              const machine = machineMap.get(request.machineId)
               return (
                 <div
                   key={request.id}

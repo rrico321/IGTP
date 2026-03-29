@@ -18,10 +18,10 @@ export async function loginAction(
 
   if (userId === '__new__') {
     if (!newName) return { error: 'Name is required to create an account.' }
-    const user = createUser(newName)
+    const user = await createUser(newName)
     selectedUserId = user.id
   } else {
-    const user = getUserById(selectedUserId)
+    const user = await getUserById(selectedUserId)
     if (!user) return { error: 'User not found.' }
   }
 

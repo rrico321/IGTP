@@ -13,10 +13,10 @@ export async function createRequestAction(
 ): Promise<ActionState> {
   const userId = await requireUserId()
 
-  const machine = getMachineById(machineId)
+  const machine = await getMachineById(machineId)
   if (!machine) return { error: 'Machine not found.' }
   if (machine.ownerId === userId) return { error: 'You cannot request your own machine.' }
-  if (!isTrusted(userId, machine.ownerId)) {
+  if (!(await isTrusted(userId, machine.ownerId))) {
     return { error: 'You can only request machines from trusted users.' }
   }
 
@@ -28,7 +28,7 @@ export async function createRequestAction(
     return { error: 'Estimated hours must be at least 1.' }
   }
 
-  createRequest({
+  await createRequest({
     machineId,
     requesterId: userId,
     purpose,

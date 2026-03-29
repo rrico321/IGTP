@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getMachineById, getRequestsByMachine, getUserById } from '@/lib/db'
+import { getMachineById, getRequestsByMachine, getUsers } from '@/lib/db'
 import { updateRequestStatusAction } from './actions'
-import type { AccessRequest } from '@/lib/types'
+import type { AccessRequest, User } from '@/lib/types'
 
 const STATUS_CLASSES: Record<AccessRequest['status'], string> = {
   pending: 'bg-yellow-900/50 text-yellow-400 border border-yellow-800',
@@ -18,10 +18,14 @@ export default async function MachineRequestsPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const machine = getMachineById(id)
+  const machine = await getMachineById(id)
   if (!machine) notFound()
 
-  const requests = getRequestsByMachine(id)
+  const [requests, allUsers] = await Promise.all([
+    getRequestsByMachine(id),
+    getUsers(),
+  ])
+  const userMap = new Map<string, User>(allUsers.map((u) => [u.id, u]))
   const pending = requests.filter((r) => r.status === 'pending')
   const other = requests.filter((r) => r.status !== 'pending')
 
@@ -59,7 +63,7 @@ export default async function MachineRequestsPage({
             </h2>
             <div className="space-y-4">
               {pending.map((request) => {
-                const requester = getUserById(request.requesterId)
+                const requester = userMap.get(request.requesterId)
                 const approveAction = updateRequestStatusAction.bind(
                   null,
                   request.id,
@@ -142,7 +146,7 @@ export default async function MachineRequestsPage({
             </h2>
             <div className="space-y-3">
               {other.map((request) => {
-                const requester = getUserById(request.requesterId)
+                const requester = userMap.get(request.requesterId)
                 return (
                   <div
                     key={request.id}

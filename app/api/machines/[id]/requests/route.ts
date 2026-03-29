@@ -6,11 +6,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const machine = getMachineById(id);
+  const machine = await getMachineById(id);
   if (!machine) {
     return Response.json({ error: "Machine not found" }, { status: 404 });
   }
-  const requests = getRequestsByMachine(id);
+  const requests = await getRequestsByMachine(id);
   return Response.json(requests);
 }
 
@@ -19,7 +19,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const machine = getMachineById(id);
+  const machine = await getMachineById(id);
   if (!machine) {
     return Response.json({ error: "Machine not found" }, { status: 404 });
   }
@@ -33,7 +33,7 @@ export async function POST(
     );
   }
 
-  const accessRequest = createRequest({
+  const accessRequest = await createRequest({
     machineId: id,
     requesterId,
     purpose,

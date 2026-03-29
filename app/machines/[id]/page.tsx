@@ -33,7 +33,7 @@ export default async function MachineDetailPage({
   const { id } = await params
   const { edit } = await searchParams
 
-  const machine = getMachineById(id)
+  const machine = await getMachineById(id)
   if (!machine) notFound()
 
   const isEditing = edit === '1'

@@ -1,11 +1,17 @@
-import { getTrustConnections, getUserById } from '@/lib/db'
+import { getTrustConnections, getUsers } from '@/lib/db'
 import { requireUserId } from '@/lib/auth'
 import { removeTrustAction } from './actions'
 import { AddTrustForm } from './AddTrustForm'
+import type { User } from '@/lib/types'
 
 export default async function TrustSettingsPage() {
   const userId = await requireUserId()
-  const connections = getTrustConnections().filter((t) => t.userId === userId)
+  const [allConnections, allUsers] = await Promise.all([
+    getTrustConnections(),
+    getUsers(),
+  ])
+  const connections = allConnections.filter((t) => t.userId === userId)
+  const userMap = new Map<string, User>(allUsers.map((u) => [u.id, u]))
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -45,7 +51,7 @@ export default async function TrustSettingsPage() {
           {connections.length > 0 && (
             <div className="space-y-2">
               {connections.map((conn) => {
-                const trusted = getUserById(conn.trustedUserId)
+                const trusted = userMap.get(conn.trustedUserId)
                 const removeAction = removeTrustAction.bind(null, conn.id)
 
                 return (
