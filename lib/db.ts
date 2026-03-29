@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-import type { Machine, AccessRequest, User, TrustConnection, Notification, GpuJob, JobUsageSnapshot, UsageReport, Invite, ApiKey, MachineModel, Conversation, ConversationMessage } from "./types";
+import type { Machine, AccessRequest, User, TrustConnection, Notification, GpuJob, JobUsageSnapshot, UsageReport, Invite, ApiKey, MachineModel, Conversation, ConversationMessage, FriendRequest } from "./types";
 
 function getSql() {
   const url = process.env.DATABASE_URL;
@@ -966,4 +966,87 @@ export async function addConversationMessage(data: {
     RETURNING ${sql.unsafe(CONV_MSG_COLS)}
   `;
   return rows[0] as ConversationMessage;
+}
+
+// ─── Friend Requests ─────────────────────────────────────────────────────────
+
+const FRIEND_REQ_COLS = `
+  id,
+  from_user_id AS "fromUserId",
+  to_user_id   AS "toUserId",
+  status,
+  created_at   AS "createdAt"
+`;
+
+export async function createFriendRequest(fromUserId: string, toUserId: string): Promise<FriendRequest> {
+  const sql = getSql();
+  const id = `freq-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const now = new Date().toISOString();
+  const rows = await sql`
+    INSERT INTO friend_requests (id, from_user_id, to_user_id, status, created_at)
+    VALUES (${id}, ${fromUserId}, ${toUserId}, 'pending', ${now})
+    ON CONFLICT (from_user_id, to_user_id) DO NOTHING
+    RETURNING ${sql.unsafe(FRIEND_REQ_COLS)}
+  `;
+  return rows[0] as FriendRequest;
+}
+
+export async function getFriendRequestsForUser(userId: string): Promise<FriendRequest[]> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(FRIEND_REQ_COLS)} FROM friend_requests
+    WHERE (to_user_id = ${userId} OR from_user_id = ${userId})
+    ORDER BY created_at DESC
+  `;
+  return rows as FriendRequest[];
+}
+
+export async function getPendingFriendRequestsForUser(userId: string): Promise<FriendRequest[]> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(FRIEND_REQ_COLS)} FROM friend_requests
+    WHERE to_user_id = ${userId} AND status = 'pending'
+    ORDER BY created_at DESC
+  `;
+  return rows as FriendRequest[];
+}
+
+export async function acceptFriendRequest(id: string, userId: string): Promise<boolean> {
+  const sql = getSql();
+  const now = new Date().toISOString();
+  // Only the recipient can accept
+  const rows = await sql`
+    UPDATE friend_requests SET status = 'accepted'
+    WHERE id = ${id} AND to_user_id = ${userId} AND status = 'pending'
+    RETURNING ${sql.unsafe(FRIEND_REQ_COLS)}
+  `;
+  if (rows.length === 0) return false;
+
+  const req = rows[0] as FriendRequest;
+
+  // Create bidirectional trust connections
+  const trustId1 = `trust-${Date.now()}-a`;
+  const trustId2 = `trust-${Date.now()}-b`;
+  await sql`
+    INSERT INTO trust_connections (id, user_id, trusted_user_id, created_at)
+    VALUES (${trustId1}, ${req.fromUserId}, ${req.toUserId}, ${now})
+    ON CONFLICT (user_id, trusted_user_id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO trust_connections (id, user_id, trusted_user_id, created_at)
+    VALUES (${trustId2}, ${req.toUserId}, ${req.fromUserId}, ${now})
+    ON CONFLICT (user_id, trusted_user_id) DO NOTHING
+  `;
+
+  return true;
+}
+
+export async function denyFriendRequest(id: string, userId: string): Promise<boolean> {
+  const sql = getSql();
+  const rows = await sql`
+    UPDATE friend_requests SET status = 'denied'
+    WHERE id = ${id} AND to_user_id = ${userId} AND status = 'pending'
+    RETURNING id
+  `;
+  return rows.length > 0;
 }

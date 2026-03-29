@@ -175,6 +175,19 @@ CREATE INDEX IF NOT EXISTS idx_conv_messages_conv ON conversation_messages(conve
 
 ALTER TABLE gpu_jobs ADD COLUMN IF NOT EXISTS conversation_id TEXT REFERENCES conversations(id);
 
+-- Friend requests
+CREATE TABLE IF NOT EXISTS friend_requests (
+  id          TEXT PRIMARY KEY,
+  from_user_id TEXT NOT NULL REFERENCES users(id),
+  to_user_id   TEXT NOT NULL REFERENCES users(id),
+  status       TEXT NOT NULL DEFAULT 'pending',
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(from_user_id, to_user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_friend_requests_to ON friend_requests(to_user_id, status);
+CREATE INDEX IF NOT EXISTS idx_friend_requests_from ON friend_requests(from_user_id);
+
 -- Seed data (idempotent via ON CONFLICT DO NOTHING)
 INSERT INTO users (id, name, email, created_at) VALUES
   ('user-1', 'Alice Chen', 'alice@example.com', '2026-03-01T00:00:00.000Z'),

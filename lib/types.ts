@@ -143,6 +143,14 @@ export interface ConversationMessage {
   createdAt: string;
 }
 
+export interface FriendRequest {
+  id: string;
+  fromUserId: string;
+  toUserId: string;
+  status: "pending" | "accepted" | "denied";
+  createdAt: string;
+}
+
 export interface UsageReport {
   userId: string;
   from: string;
