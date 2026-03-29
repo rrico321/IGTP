@@ -49,11 +49,18 @@ export async function POST(
     return Response.json({ error: "name is required" }, { status: 400 });
   }
 
-  // Use existing account if the email is already registered, otherwise create new
-  let user = await getUserByEmail(invite.inviteeEmail);
-  if (!user) {
-    user = await createUserWithEmail(name.trim(), invite.inviteeEmail);
+  // If email already has an account, do NOT grant a session via invite token.
+  // Direct the user to sign in normally instead.
+  const existingUser = await getUserByEmail(invite.inviteeEmail);
+  if (existingUser) {
+    return Response.json(
+      { error: "account_exists", message: "An account with this email already exists. Please sign in." },
+      { status: 409 }
+    );
   }
+
+  // New user — create account
+  const user = await createUserWithEmail(name.trim(), invite.inviteeEmail);
 
   // Mark invite as accepted
   await acceptInvite(token, user.id);
@@ -64,7 +71,7 @@ export async function POST(
     addTrustConnection(user.id, invite.inviterId),
   ]);
 
-  // Set session cookie
+  // Set session cookie for the newly created user
   const store = await cookies();
   store.set(SESSION_COOKIE, user.id, {
     httpOnly: true,

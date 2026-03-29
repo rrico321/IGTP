@@ -26,7 +26,11 @@ export function AcceptInviteForm({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error ?? "Something went wrong.");
+        if (data.error === "account_exists") {
+          router.push("/login?reason=invite_existing_account");
+          return;
+        }
+        setError(data.message ?? data.error ?? "Something went wrong.");
         return;
       }
       router.push("/");
