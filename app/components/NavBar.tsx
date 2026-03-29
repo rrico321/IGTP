@@ -2,6 +2,14 @@ import Link from 'next/link'
 import { getCurrentUserId } from '@/lib/auth'
 import { getUserById } from '@/lib/db'
 import { LogoutButton } from './LogoutButton'
+import { MobileNav } from './MobileNav'
+
+const NAV_LINKS = [
+  { href: '/browse', label: 'Browse' },
+  { href: '/machines', label: 'My Machines' },
+  { href: '/requests', label: 'My Requests' },
+  { href: '/settings/trust', label: 'Trust' },
+]
 
 export async function NavBar() {
   const userId = await getCurrentUserId()
@@ -10,29 +18,35 @@ export async function NavBar() {
   if (!user) return null
 
   return (
-    <header className="border-b border-zinc-800 bg-zinc-950">
+    <header className="relative border-b border-border bg-background/95 backdrop-blur-sm">
       <div className="max-w-4xl mx-auto px-4 h-12 flex items-center justify-between">
-        <nav className="flex items-center gap-5 text-sm">
-          <Link href="/" className="font-semibold text-zinc-100 hover:text-white">
+        {/* Logo */}
+        <div className="flex items-center gap-6">
+          <Link href="/" className="font-semibold text-sm text-foreground hover:text-foreground/80 transition-colors">
             IGTP
           </Link>
-          <Link href="/browse" className="text-zinc-500 hover:text-zinc-300 transition-colors">
-            Browse
-          </Link>
-          <Link href="/machines" className="text-zinc-500 hover:text-zinc-300 transition-colors">
-            My Machines
-          </Link>
-          <Link href="/requests" className="text-zinc-500 hover:text-zinc-300 transition-colors">
-            My Requests
-          </Link>
-          <Link href="/settings/trust" className="text-zinc-500 hover:text-zinc-300 transition-colors">
-            Trust
-          </Link>
-        </nav>
-        <div className="flex items-center gap-3 text-sm">
-          <span className="text-zinc-400">{user.name}</span>
+          {/* Desktop nav */}
+          <nav className="hidden sm:flex items-center gap-1">
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="text-sm px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+
+        {/* Desktop right side */}
+        <div className="hidden sm:flex items-center gap-3">
+          <span className="text-sm text-muted-foreground">{user.name}</span>
           <LogoutButton />
         </div>
+
+        {/* Mobile hamburger */}
+        <MobileNav userName={user.name} />
       </div>
     </header>
   )

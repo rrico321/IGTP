@@ -28,9 +28,9 @@ const GPU_OPTIONS = [
   '__custom__',
 ]
 
-const LABEL = 'text-xs font-medium text-zinc-400 mb-1 block'
+const LABEL = 'text-xs font-medium text-muted-foreground mb-1.5 block'
 const INPUT =
-  'w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500'
+  'w-full bg-input/30 border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder-muted-foreground/50 focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring/50 transition-colors'
 
 interface MachineFormProps {
   action: (prevState: ActionState, formData: FormData) => Promise<ActionState>
@@ -57,7 +57,7 @@ export function MachineForm({
   return (
     <form action={formAction} className="space-y-5">
       {state?.error && (
-        <div className="bg-red-900/30 border border-red-800 text-red-400 text-sm px-4 py-3 rounded-lg">
+        <div className="bg-destructive/10 border border-destructive/20 text-destructive text-sm px-4 py-3 rounded-lg">
           {state.error}
         </div>
       )}
@@ -65,7 +65,7 @@ export function MachineForm({
       {/* Name */}
       <div>
         <label htmlFor="name" className={LABEL}>
-          Machine Name <span className="text-red-500">*</span>
+          Machine Name <span className="text-destructive">*</span>
         </label>
         <input
           id="name"
@@ -96,7 +96,7 @@ export function MachineForm({
       {/* GPU Model */}
       <div>
         <label htmlFor="gpuModelSelect" className={LABEL}>
-          GPU Model <span className="text-red-500">*</span>
+          GPU Model <span className="text-destructive">*</span>
         </label>
         <select
           id="gpuModelSelect"
@@ -138,7 +138,7 @@ export function MachineForm({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label htmlFor="vramGb" className={LABEL}>
-            VRAM (GB) <span className="text-red-500">*</span>
+            VRAM (GB) <span className="text-destructive">*</span>
           </label>
           <input
             id="vramGb"
@@ -153,7 +153,7 @@ export function MachineForm({
         </div>
         <div>
           <label htmlFor="ramGb" className={LABEL}>
-            RAM (GB) <span className="text-red-500">*</span>
+            RAM (GB) <span className="text-destructive">*</span>
           </label>
           <input
             id="ramGb"
@@ -171,7 +171,7 @@ export function MachineForm({
       {/* CPU Model */}
       <div>
         <label htmlFor="cpuModel" className={LABEL}>
-          CPU Model <span className="text-red-500">*</span>
+          CPU Model <span className="text-destructive">*</span>
         </label>
         <input
           id="cpuModel"
@@ -189,14 +189,14 @@ export function MachineForm({
         <button
           type="submit"
           disabled={pending}
-          className="bg-white text-black px-5 py-2 rounded-lg text-sm font-medium hover:bg-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
         >
           {pending ? 'Saving…' : submitLabel}
         </button>
         {cancelHref && (
           <a
             href={cancelHref}
-            className="px-5 py-2 rounded-lg text-sm text-zinc-400 border border-zinc-700 hover:border-zinc-500 hover:text-zinc-100"
+            className="px-5 py-2 rounded-lg text-sm text-muted-foreground border border-border hover:border-border/60 hover:text-foreground transition-colors"
           >
             Cancel
           </a>
