@@ -438,6 +438,9 @@ export async function createJob(data: {
   vramLimitGb?: number | null;
   cpuLimitCores?: number | null;
   ramLimitGb?: number | null;
+  model?: string;
+  prompt?: string;
+  jobType?: string;
 }): Promise<GpuJob> {
   const sql = getSql();
   const id = `job-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -446,13 +449,16 @@ export async function createJob(data: {
     INSERT INTO gpu_jobs (
       id, machine_id, requester_id, request_id, command, docker_image,
       priority, status, max_runtime_sec, vram_limit_gb, cpu_limit_cores,
-      ram_limit_gb, queued_at, created_at, updated_at
+      ram_limit_gb, model, prompt, job_type,
+      queued_at, created_at, updated_at
     ) VALUES (
       ${id}, ${data.machineId}, ${data.requesterId}, ${data.requestId},
       ${data.command}, ${data.dockerImage ?? ''},
       ${data.priority ?? 5}, 'queued', ${data.maxRuntimeSec ?? 3600},
       ${data.vramLimitGb ?? null}, ${data.cpuLimitCores ?? null},
-      ${data.ramLimitGb ?? null}, ${now}, ${now}, ${now}
+      ${data.ramLimitGb ?? null},
+      ${data.model ?? null}, ${data.prompt ?? null}, ${data.jobType ?? 'chat'},
+      ${now}, ${now}, ${now}
     )
     RETURNING ${sql.unsafe(JOB_COLS)}
   `;

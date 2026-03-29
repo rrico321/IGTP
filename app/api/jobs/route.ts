@@ -21,9 +21,12 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { requestId, command, dockerImage, priority, maxRuntimeSec, vramLimitGb, cpuLimitCores, ramLimitGb } = body;
+  const { requestId, command, dockerImage, priority, maxRuntimeSec, vramLimitGb, cpuLimitCores, ramLimitGb, model, prompt, jobType } = body;
 
-  if (!requestId || !command) {
+  // If model and prompt are provided, use prompt as the command for backward compat
+  const effectiveCommand = model && prompt ? prompt : command;
+
+  if (!requestId || !effectiveCommand) {
     return Response.json({ error: "Missing required fields: requestId, command" }, { status: 400 });
   }
 
@@ -48,13 +51,16 @@ export async function POST(request: NextRequest) {
     machineId: accessRequest.machineId,
     requesterId: userId,
     requestId,
-    command,
+    command: effectiveCommand,
     dockerImage: dockerImage ?? "",
     priority: priority != null ? Number(priority) : 5,
     maxRuntimeSec: maxRuntimeSec != null ? Number(maxRuntimeSec) : 3600,
     vramLimitGb: vramLimitGb != null ? Number(vramLimitGb) : null,
     cpuLimitCores: cpuLimitCores != null ? Number(cpuLimitCores) : null,
     ramLimitGb: ramLimitGb != null ? Number(ramLimitGb) : null,
+    model: model ?? undefined,
+    prompt: prompt ?? undefined,
+    jobType: jobType ?? undefined,
   });
 
   return Response.json(job, { status: 201 });
