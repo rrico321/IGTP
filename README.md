@@ -1,35 +1,82 @@
 # IGTP — I Got The Power
 
-> Peer-to-peer GPU compute sharing for people who trust each other. No cloud markup, no middlemen — just you and your network.
+> Share your computer's GPU power with friends you trust. No cloud accounts, no fees — just your network.
 
 ---
 
-## Table of Contents
+## What Is This?
 
-- [Overview](#overview)
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Architecture](#architecture)
-- [Prerequisites](#prerequisites)
-- [Getting Started](#getting-started)
-- [Environment Variables](#environment-variables)
-- [Database Setup](#database-setup)
-- [Running the App](#running-the-app)
-- [Running the Daemon](#running-the-daemon)
-- [Project Structure](#project-structure)
-- [API Reference](#api-reference)
-- [Available Scripts](#available-scripts)
-- [Deployment](#deployment)
-- [Development Conventions](#development-conventions)
-- [Contributing](#contributing)
+IGTP lets people share their computer's processing power (GPU) with friends. Think of it like lending your gaming PC to a friend for their AI project — except they can use it remotely, and you stay in control of who gets access.
+
+**Two parts work together:**
+
+1. **The Website** (hosted on Vercel) — Where you manage everything: sign up, register your machine, approve requests, and monitor jobs.
+2. **The Daemon** (runs on your computer) — A small background program that connects your machine to the website and runs approved jobs.
 
 ---
 
-## Overview
+## How It Works
 
-IGTP lets you share GPU compute resources directly with people in your trust network. If you have a powerful machine sitting idle, register it and let your trusted friends borrow it. If you need GPU time, browse what's available from people you trust and request access — no cloud provider accounts or credit card markups required.
+### If You Want to Share Your Machine
 
-The platform is built around a **trust graph**: you explicitly decide who can see and request your machines, and access only propagates through relationships you've intentionally created. New members join via invite links, and upon joining they automatically inherit visibility into their inviter's resource pool.
+1. **Sign up** at [igtp.vercel.app](https://igtp.vercel.app)
+2. **Get an API key** from Settings > API Keys
+3. **Install the daemon** on your machine:
+
+   **Mac or Linux** — open Terminal and run:
+   ```bash
+   curl -fsSL https://igtp.vercel.app/install.sh | bash
+   ```
+
+   **Windows** — open PowerShell and run:
+   ```powershell
+   irm https://igtp.vercel.app/install.ps1 | iex
+   ```
+
+   The installer will:
+   - Check that Node.js is installed (and help you install it if not)
+   - Detect your GPU, CPU, and RAM
+   - Register your machine on the website
+   - Set up auto-start so it runs in the background
+
+4. **Approve requests** when friends ask to use your machine
+
+That's it. Your machine will quietly run in the background, picking up and running approved jobs.
+
+### If You Want to Use Someone's Machine
+
+1. **Get an invite** — Someone in the network needs to invite you
+2. **Sign up** using the invite link
+3. **Browse** available machines from people in your trust network
+4. **Request access** — Describe what you need and for how long
+5. **Submit a job** once approved — Provide your command and Docker image
+6. **Monitor and download results** from the website
+
+---
+
+## The Trust Network
+
+IGTP is built on trust. You only see machines from people you've explicitly trusted, and they only see yours if they trust you back.
+
+- **Inviting someone** automatically adds them to your trust network (and you to theirs)
+- **Trust is directional** — you can trust someone without them trusting you back
+- **You control access** — Every request to use your machine needs your approval
+
+---
+
+## Managing Your Daemon
+
+After installation, you can control the daemon with these commands:
+
+| Command | What It Does |
+|---------|-------------|
+| `igtp status` | Check if the daemon is running |
+| `igtp start` | Start sharing your machine |
+| `igtp stop` | Stop sharing (pause) |
+| `igtp logs` | See what the daemon is doing |
+| `igtp autostart on` | Start automatically when you log in |
+| `igtp autostart off` | Don't start automatically |
+| `igtp uninstall` | Remove everything from your machine |
 
 ---
 
@@ -37,453 +84,119 @@ The platform is built around a **trust graph**: you explicitly decide who can se
 
 | Feature | Description |
 |---------|-------------|
-| **Machine Registry** | Register GPU machines with full hardware specs (GPU model, VRAM, CPU, RAM) |
-| **Browse & Request** | Browse available machines from your trust network and submit time requests |
-| **Trust Network** | Explicitly trust users to grant them visibility and access to your machines |
-| **Invite System** | Invite new users via email; invitees join your trust circle automatically |
-| **GPU Jobs** | Submit, monitor, and cancel GPU workloads tied to access requests |
-| **Real-time Notifications** | Server-Sent Events (SSE) push live status updates for requests and jobs |
-| **Usage Reports** | Track machine usage across the network |
-| **Machine Heartbeats** | Machines report live availability via a daemon heartbeat API |
-| **Access Request Workflow** | Owners approve/deny requests with optional notes; status flows through the UI |
+| Machine Registry | Register your GPU machine with full hardware specs |
+| Browse & Request | Browse available machines and request time |
+| Trust Network | Control who sees your machines |
+| Invite System | Invite friends via email |
+| GPU Jobs | Submit, monitor, and cancel workloads |
+| Real-time Updates | Get notified when requests are approved or jobs finish |
+| Usage Reports | Track how your machines are being used |
+| Auto-Start | Daemon starts when your computer boots up |
 
 ---
 
-## Tech Stack
+## For Developers
 
-| Layer | Technology | Version | Purpose |
-|-------|-----------|---------|---------|
-| Framework | [Next.js](https://nextjs.org) | 16.x | Full-stack React framework (App Router) |
-| UI | [React](https://react.dev) | 19.x | Component model |
-| Language | [TypeScript](https://www.typescriptlang.org) | 5.x | End-to-end type safety |
-| Styling | [Tailwind CSS](https://tailwindcss.com) | 4.x | Utility-first CSS |
-| Components | [shadcn/ui](https://ui.shadcn.com) + [Base UI](https://base-ui.com) | latest | Accessible UI primitives |
-| Icons | [Lucide React](https://lucide.dev) | latest | SVG icon library |
-| Database | [Neon Serverless Postgres](https://neon.tech) | latest | Relational database |
-| File Storage | [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) | latest | Job artifact storage |
-| Email | [Resend](https://resend.com) | latest | Transactional email (invites) |
-| Observability | [Sentry](https://sentry.io) | 10.x | Error tracking & performance |
-| Analytics | [Vercel Analytics](https://vercel.com/analytics) + Speed Insights | latest | Real-user metrics |
-| Linting | [ESLint](https://eslint.org) | 9.x | Code quality |
-| Daemon | Node.js / [tsx](https://github.com/privatenumber/tsx) | — | Machine-side GPU workload runner |
+<details>
+<summary>Click to expand technical documentation</summary>
 
----
+### Tech Stack
 
-## Architecture
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript |
+| Database | Neon Serverless Postgres |
+| Styling | Tailwind CSS 4 + shadcn/ui |
+| File Storage | Vercel Blob |
+| Email | Resend |
+| Monitoring | Sentry |
+| Analytics | Vercel Analytics |
+
+### Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Next.js 16 App                          │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│  │  App Router  │  │ Route Handlers│  │  Server Actions  │  │
-│  │  (pages/UI)  │  │   (REST API)  │  │  (mutations)     │  │
-│  └──────┬───────┘  └──────┬───────┘  └────────┬─────────┘  │
-│         └─────────────────┼──────────────────-┘            │
-│                           │                                 │
-│              ┌────────────▼──────────────┐                  │
-│              │       lib/ (shared)       │                  │
-│              │  auth.ts · db.ts · types  │                  │
-│              └────────────┬──────────────┘                  │
-└───────────────────────────┼─────────────────────────────────┘
-                            │
-              ┌─────────────▼──────────────┐
-              │      Neon Postgres          │
-              │  users, machines, requests  │
-              │  jobs, trust, invites, etc. │
-              └────────────────────────────┘
-
-┌───────────────────────────────────────────────────┐
-│              igtp-daemon (per machine)            │
-│  Polls /api/machines/:id/requests                 │
-│  Executes GPU workloads                           │
-│  Posts heartbeats → /api/machines/:id/heartbeat  │
-│  Uploads artifacts → Vercel Blob                 │
-└───────────────────────────────────────────────────┘
+┌──────────────────────────────────┐     ┌──────────────────────────────┐
+│  Website (Vercel)                │     │  Your Machine (Daemon)       │
+│                                  │     │                              │
+│  Users, trust network, requests  │◄───►│  Polls for jobs every 10s    │
+│  Job queue, notifications        │     │  Runs approved workloads     │
+│  API for daemon communication    │     │  Sends heartbeats            │
+│                                  │     │  Uploads results             │
+└──────────────────────────────────┘     └──────────────────────────────┘
 ```
 
-The web app and daemon communicate entirely through the REST API. The daemon runs locally on each registered machine and handles job execution independently of the web server.
-
----
-
-## Prerequisites
-
-- **Node.js** 20+ (recommended: latest LTS — Node 24 for production)
-- **npm** 10+
-- **Neon Postgres** database (free tier works for development)
-- **Vercel account** (for Blob storage and deployment — optional for local dev)
-- **Resend account** (for email invites — optional for local dev)
-- **Sentry project** (optional — errors are silently dropped if not configured)
-
----
-
-## Getting Started
-
-### 1. Clone the repository
+### Running the Website Locally
 
 ```bash
 git clone https://github.com/rrico321/IGTP.git
 cd IGTP
-```
-
-### 2. Install dependencies
-
-```bash
 npm install
 ```
 
-### 3. Set up environment variables
-
-Copy the example below into a `.env.local` file at the project root and fill in your values:
-
-```bash
-cp .env.example .env.local   # if .env.example exists, otherwise create manually
-```
-
-See the [Environment Variables](#environment-variables) section for the full list.
-
-### 4. Initialize the database
-
-Start the dev server first (step 5), then hit the migration endpoint once:
-
-```bash
-curl -X POST http://localhost:3000/api/migrate
-```
-
-This runs `lib/schema.sql` against your Neon database and creates all required tables.
-
-### 5. Start the development server
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) — you'll see the landing page.
-
-### 6. Create your first account
-
-The login page (`/login`) handles both sign-up and sign-in. Enter any email + password on first use to create an account.
-
----
-
-## Environment Variables
-
-Create a `.env.local` file in the project root. **Never commit this file.**
+Create `.env.local`:
 
 ```env
-# ── Database ────────────────────────────────────────────────
-# Neon Serverless Postgres connection string
-# Get it from: https://console.neon.tech → your project → Connection Details
-DATABASE_URL="postgresql://user:password@host/dbname?sslmode=require"
-
-# ── Authentication ───────────────────────────────────────────
-# Arbitrary secret used to sign session tokens — generate with:
-# node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-AUTH_SECRET="your-random-secret-here"
-
-# ── File Storage (Vercel Blob) ───────────────────────────────
-# Auto-provisioned if you run `vercel env pull` after linking a Vercel project.
-# Or create a Blob store in the Vercel dashboard and copy the token.
-BLOB_READ_WRITE_TOKEN="vercel_blob_rw_..."
-
-# ── Email (Resend) ───────────────────────────────────────────
-# Get your API key at: https://resend.com/api-keys
-RESEND_API_KEY="re_..."
-# The "From" address for invite emails (must be a verified domain in Resend)
-EMAIL_FROM="noreply@yourdomain.com"
-
-# ── App URL ──────────────────────────────────────────────────
-# Used to build absolute URLs in emails and invite links
+DATABASE_URL="postgresql://..."     # Neon connection string
+BLOB_READ_WRITE_TOKEN="vercel_..."  # Vercel Blob token
+RESEND_API_KEY="re_..."             # For invite emails (optional)
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
-
-# ── Sentry (optional) ────────────────────────────────────────
-# Get from: https://sentry.io → Project Settings → Client Keys (DSN)
-NEXT_PUBLIC_SENTRY_DSN="https://...@sentry.io/..."
-SENTRY_AUTH_TOKEN="sntryu_..."
-SENTRY_ORG="your-org"
-SENTRY_PROJECT="igtp"
 ```
 
-> **Tip:** If you're deploying to Vercel, run `vercel env pull` to automatically download all production/preview/development variables into `.env.local`.
-
----
-
-## Database Setup
-
-IGTP uses Neon's serverless Postgres driver (`@neondatabase/serverless`). The schema lives in `lib/schema.sql`.
-
-### Local / first-time setup
-
-1. Create a free Neon project at [neon.tech](https://neon.tech).
-2. Copy the connection string into `DATABASE_URL` in `.env.local`.
-3. Start the dev server and run:
-   ```bash
-   curl -X POST http://localhost:3000/api/migrate
-   ```
-
-### Schema overview
-
-| Table | Description |
-|-------|-------------|
-| `users` | Registered users (id, name, email) |
-| `machines` | GPU machines (specs, status, owner) |
-| `access_requests` | Requests from users to borrow a machine |
-| `trust_connections` | Directed trust edges between users |
-| `invites` | Invite tokens tied to a sending user |
-| `jobs` | GPU workload jobs linked to access requests |
-| `notifications` | In-app notification records |
-
----
-
-## Running the App
-
 ```bash
-# Development (hot reload via Turbopack)
 npm run dev
-
-# Production build
-npm run build
-
-# Start production server (requires a build)
-npm run start
-
-# Lint
-npm run lint
+curl -X POST http://localhost:3000/api/migrate   # Set up database
 ```
 
-The dev server runs on [http://localhost:3000](http://localhost:3000) by default.
+### Environment Variables
 
----
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | Neon Postgres connection string |
+| `BLOB_READ_WRITE_TOKEN` | No | Vercel Blob storage token |
+| `RESEND_API_KEY` | No | Resend API key for invite emails |
+| `EMAIL_FROM` | No | Sender email for invites |
+| `NEXT_PUBLIC_APP_URL` | No | App URL for email links (defaults to localhost) |
+| `NEXT_PUBLIC_SENTRY_DSN` | No | Sentry error tracking DSN |
+| `CRON_SECRET` | No | Legacy daemon auth (use API keys instead) |
 
-## Running the Daemon
-
-The `igtp-daemon` is a lightweight Node.js process that runs **on the machine you want to share**. It polls the IGTP API for pending jobs, executes them, and reports heartbeats so the platform knows the machine is online.
-
-### Setup
-
-```bash
-cd igtp-daemon
-npm install
-```
-
-Create a `.env` file inside `igtp-daemon/`:
-
-```env
-# The API base URL for your IGTP deployment
-IGTP_API_URL="https://your-igtp-app.vercel.app"
-
-# Machine ID — obtained from the web app after registering your machine
-# (Settings → Your Machines → copy the ID shown)
-MACHINE_ID="your-machine-id-here"
-
-# Vercel Blob token — same as the web app, used to upload job artifacts
-BLOB_READ_WRITE_TOKEN="vercel_blob_rw_..."
-```
-
-### Start
-
-```bash
-# Development (TypeScript, no compile step)
-npm run dev
-
-# Production (compile first, then run)
-npm run build
-npm start
-```
-
-The daemon will:
-1. Send a heartbeat every 30 seconds to mark the machine as online.
-2. Poll for access requests approved by the machine owner.
-3. Execute approved GPU workloads.
-4. Upload job output artifacts to Vercel Blob and update job status.
-
----
-
-## Project Structure
-
-```
-IGTP/
-├── app/                          # Next.js App Router
-│   ├── layout.tsx                # Root layout (NavBar, fonts, global styles)
-│   ├── page.tsx                  # Home — landing (guests) or dashboard (auth)
-│   ├── globals.css               # Global CSS + Tailwind base
-│   ├── error.tsx                 # Root error boundary
-│   ├── not-found.tsx             # 404 page
-│   ├── loading.tsx               # Root loading state
-│   │
-│   ├── api/                      # REST API route handlers
-│   │   ├── machines/             # CRUD + heartbeat + requests
-│   │   ├── jobs/                 # Job dispatch, status, snapshots
-│   │   ├── requests/             # Access request management
-│   │   ├── invites/              # Invite creation & token acceptance
-│   │   ├── trust/                # Trust connection management
-│   │   ├── notifications/        # Notification read/dismiss
-│   │   ├── sse/                  # Server-Sent Events stream
-│   │   ├── usage/report/         # Usage reporting
-│   │   └── migrate/              # One-shot schema migration (dev)
-│   │
-│   ├── browse/                   # Browse machines from trust network
-│   │   └── [id]/                 # Individual machine detail + request form
-│   ├── machines/                 # Your registered machines
-│   │   ├── new/                  # Register a new machine
-│   │   └── [id]/                 # Machine detail + incoming requests
-│   ├── jobs/                     # GPU job list and detail
-│   │   ├── new/                  # Submit a new job
-│   │   └── [id]/                 # Job detail + cancel
-│   ├── requests/                 # Incoming access requests (owner view)
-│   ├── notifications/            # Notification centre
-│   ├── network/                  # Trust network visualisation
-│   ├── login/                    # Sign in / sign up
-│   ├── invite/[token]/           # Accept an invite
-│   ├── settings/
-│   │   ├── invites/              # Send invite emails
-│   │   └── trust/                # Manage trusted users
-│   └── components/               # Shared UI components
-│       ├── NavBar.tsx
-│       ├── MobileNav.tsx
-│       ├── NotificationBell.tsx
-│       ├── StatusBadge.tsx
-│       └── LogoutButton.tsx
-│
-├── components/                   # shadcn/ui generated components
-├── lib/                          # Shared server-side utilities
-│   ├── auth.ts                   # Session helpers (get/set/clear)
-│   ├── db.ts                     # Database query functions
-│   ├── email.ts                  # Resend email helpers
-│   ├── types.ts                  # Shared TypeScript types
-│   ├── utils.ts                  # General utilities (cn, etc.)
-│   └── schema.sql                # Database schema
-│
-├── igtp-daemon/                  # Machine-side daemon
-│   ├── index.ts                  # Main daemon loop
-│   └── package.json
-│
-├── data/                         # Static / seed data
-├── public/                       # Static assets
-├── proxy.ts                      # Next.js 16 proxy (replaces middleware.ts)
-├── instrumentation.ts            # Sentry server instrumentation
-├── next.config.ts                # Next.js configuration
-├── vercel.json                   # Vercel deployment config (crons, etc.)
-├── tsconfig.json                 # TypeScript configuration
-├── eslint.config.mjs             # ESLint configuration
-└── postcss.config.mjs            # PostCSS (Tailwind) configuration
-```
-
----
-
-## API Reference
-
-All API routes live under `/api/`. They accept and return JSON.
+### API Reference
 
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/api/machines` | List all machines |
-| `POST` | `/api/machines` | Register a new machine |
-| `GET` | `/api/machines/:id` | Get machine details |
+| `POST` | `/api/machines` | Register a machine (auth required) |
 | `PATCH` | `/api/machines/:id` | Update machine (owner only) |
-| `DELETE` | `/api/machines/:id` | Remove machine (owner only) |
-| `POST` | `/api/machines/:id/heartbeat` | Daemon heartbeat — marks machine online |
-| `GET` | `/api/machines/:id/requests` | List access requests for a machine |
-| `GET` | `/api/requests` | List your own access requests |
-| `POST` | `/api/requests` | Submit an access request |
-| `GET` | `/api/requests/:id` | Get request details |
-| `PATCH` | `/api/requests/:id` | Approve / deny a request (owner only) |
-| `GET` | `/api/jobs` | List jobs |
-| `POST` | `/api/jobs/dispatch` | Dispatch a new GPU job |
-| `GET` | `/api/jobs/:id` | Get job details |
-| `PATCH` | `/api/jobs/:id` | Update job status |
-| `GET` | `/api/jobs/:id/snapshot` | Get job output snapshot |
-| `GET` | `/api/invites` | List your sent invites |
-| `POST` | `/api/invites` | Create and send an invite |
-| `GET` | `/api/invites/:token` | Validate an invite token |
-| `POST` | `/api/invites/:token` | Accept an invite |
-| `GET` | `/api/trust` | List your trusted users |
-| `POST` | `/api/trust` | Add a trust connection |
-| `DELETE` | `/api/trust/:id` | Remove a trust connection |
-| `GET` | `/api/notifications` | List your notifications |
-| `PATCH` | `/api/notifications/:id` | Mark a notification as read |
-| `GET` | `/api/sse` | SSE stream for real-time events |
-| `GET` | `/api/usage/report` | Usage report for your machines |
-| `POST` | `/api/migrate` | Run schema migration (dev only) |
+| `POST` | `/api/machines/:id/heartbeat` | Daemon heartbeat |
+| `POST` | `/api/requests` | Submit access request |
+| `PATCH` | `/api/requests/:id` | Approve/deny request |
+| `POST` | `/api/jobs/dispatch` | Get next job for a machine |
+| `POST` | `/api/jobs/:id/snapshot` | Report job metrics/completion |
+| `POST` | `/api/invites` | Send an invite |
+| `GET` | `/api/api-keys` | List your API keys |
+| `POST` | `/api/api-keys` | Generate a new API key |
 
----
+### Deployment
 
-## Available Scripts
+Push to `main` — Vercel auto-deploys. Run the migration once after first deploy:
 
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Start dev server with Turbopack hot reload |
-| `npm run build` | Compile and build for production |
-| `npm run start` | Start the production server (requires a prior build) |
-| `npm run lint` | Run ESLint across the project |
+```bash
+curl -X POST https://igtp.vercel.app/api/migrate
+```
 
----
-
-## Deployment
-
-IGTP is designed for zero-config deployment on [Vercel](https://vercel.com).
-
-### Steps
-
-1. **Push to GitHub** — Vercel auto-deploys on every push to `main`.
-2. **Connect your repo** in the Vercel dashboard (or run `vercel link`).
-3. **Add environment variables** in the Vercel dashboard (Settings → Environment Variables), or use the CLI:
-   ```bash
-   vercel env add DATABASE_URL
-   vercel env add AUTH_SECRET
-   vercel env add BLOB_READ_WRITE_TOKEN
-   vercel env add RESEND_API_KEY
-   vercel env add EMAIL_FROM
-   vercel env add NEXT_PUBLIC_APP_URL
-   ```
-4. **Run the migration** once after first deploy:
-   ```bash
-   curl -X POST https://your-app.vercel.app/api/migrate
-   ```
-5. **Deploy the daemon** on each GPU machine you want to share (see [Running the Daemon](#running-the-daemon)).
-
-The `vercel.json` file configures any cron jobs (e.g., nightly cleanup via `/api/cron/cleanup`).
-
----
-
-## Development Conventions
-
-### Next.js 16
-
-- **Server Components by default** — only add `'use client'` when you need browser APIs or interactivity.
-- **Async request APIs** — `await cookies()`, `await headers()`, `await params`, `await searchParams` (all async in Next.js 16).
-- **`proxy.ts` not `middleware.ts`** — place at project root alongside `app/`. Runs on Node.js (full runtime, not edge).
-- **Server Actions for mutations** — forms and data mutations use `'use server'` actions, not fetch calls.
-- **Path alias** — use `@/` for all imports from the project root (e.g., `@/lib/auth`, `@/components/Button`).
-
-### Database
-
-- All database logic lives in `lib/db.ts`. Do not write raw SQL in route handlers or components.
-- Use `@neondatabase/serverless` — **not** the deprecated `@vercel/postgres`.
-
-### Styling
-
-- Use Tailwind utility classes directly; avoid inline styles.
-- Use `cn()` from `lib/utils.ts` (wraps `clsx` + `tailwind-merge`) for conditional class names.
-- Dark mode is the default for this project.
-
-### Secrets
-
-- Never commit `.env.local` or any file containing secrets.
-- `.env.local` is already in `.gitignore` — keep it that way.
+</details>
 
 ---
 
 ## Contributing
 
-1. Fork the repository and create a feature branch:
-   ```bash
-   git checkout -b feat/your-feature-name
-   ```
-2. Make your changes, following the [Development Conventions](#development-conventions).
-3. Run lint before committing:
-   ```bash
-   npm run lint
-   ```
-4. Push your branch and open a Pull Request against `main`.
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feat/your-feature`
+3. Make changes and run `npm run lint`
+4. Open a Pull Request against `main`
 
-For bugs or feature requests, open an issue on GitHub.
+---
+
+## License
+
+MIT
