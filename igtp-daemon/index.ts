@@ -32,6 +32,7 @@ const API_KEY = process.env.IGTP_API_KEY;
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS ?? 10_000);
 const SNAPSHOT_INTERVAL_MS = Number(process.env.SNAPSHOT_INTERVAL_MS ?? 30_000);
 const HEARTBEAT_INTERVAL_MS = Number(process.env.HEARTBEAT_INTERVAL_MS ?? 60_000);
+const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://localhost:11434";
 
 if (!MACHINE_ID) {
   console.error("[igtp-daemon] IGTP_MACHINE_ID is required");
@@ -140,6 +141,29 @@ async function sendHeartbeat(): Promise<void> {
   }
 }
 
+// ─── Model sync ──────────────────────────────────────────────────────────────
+
+async function syncModels(): Promise<void> {
+  try {
+    const res = await fetch(`${OLLAMA_URL}/api/tags`);
+    if (!res.ok) {
+      console.error(`[igtp-daemon] Ollama not reachable: ${res.status}`);
+      return;
+    }
+    const data = await res.json();
+    const models = (data.models ?? []).map((m: { name: string; size: number }) => ({
+      name: m.name,
+      type: m.name.toLowerCase().includes("embed") ? "embedding" : "chat",
+      sizeBytes: m.size,
+    }));
+
+    await apiPost(`/api/machines/${MACHINE_ID}/models`, { models });
+    console.log(`[igtp-daemon] Synced ${models.length} models`);
+  } catch (err) {
+    console.error("[igtp-daemon] Model sync error:", err);
+  }
+}
+
 // ─── Job execution ────────────────────────────────────────────────────────────
 
 async function executeJob(job: GpuJob): Promise<void> {
@@ -237,11 +261,14 @@ console.log(`[igtp-daemon] Starting on machine ${MACHINE_ID}`);
 console.log(`[igtp-daemon]   API: ${API_URL}`);
 console.log(`[igtp-daemon]   Poll interval: ${POLL_INTERVAL_MS}ms`);
 console.log(`[igtp-daemon]   Heartbeat interval: ${HEARTBEAT_INTERVAL_MS}ms`);
+console.log(`[igtp-daemon]   Ollama: ${OLLAMA_URL}`);
 
-// Immediate first heartbeat and poll
+// Immediate first sync
 sendHeartbeat();
+syncModels();
 poll();
 
 // Recurring intervals
 setInterval(poll, POLL_INTERVAL_MS);
 setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+setInterval(syncModels, HEARTBEAT_INTERVAL_MS);
