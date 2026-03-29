@@ -1,6 +1,7 @@
 import { requireUserId } from "@/lib/auth";
-import { getUsers, getTrustConnections } from "@/lib/db";
-import { AddFriendButton, RemoveFriendButton, InviteByEmail } from "./NetworkActions";
+import { getUsers, getTrustConnections, getFriendRequestsForUser } from "@/lib/db";
+import { AddFriendButton, RemoveFriendButton, InviteByEmail, PendingRequests } from "./NetworkActions";
+import type { FriendRequest } from "@/lib/types";
 
 const W = 560;
 const H = 420;
@@ -27,9 +28,10 @@ function nodeHue(id: string): number {
 
 export default async function NetworkPage() {
   const userId = await requireUserId();
-  const [allUsers, allConnections] = await Promise.all([
+  const [allUsers, allConnections, friendRequests] = await Promise.all([
     getUsers(),
     getTrustConnections(),
+    getFriendRequestsForUser(userId),
   ]);
 
   // Current user's outgoing trust connections
@@ -81,8 +83,26 @@ export default async function NetworkPage() {
 
   // Compute "other users" not in network
   const trustedIds = new Set(connections.map((c) => c.trustedUserId));
-  const otherUsers = allUsers.filter((u) => u.id !== userId && !trustedIds.has(u.id));
+  // Also exclude users with pending friend requests (either direction)
+  const friendRequestUserIds = new Set(
+    friendRequests.map((fr) => fr.fromUserId === userId ? fr.toUserId : fr.fromUserId)
+  );
+  const otherUsers = allUsers.filter(
+    (u) => u.id !== userId && !trustedIds.has(u.id) && !friendRequestUserIds.has(u.id)
+  );
   const userMap = new Map(allUsers.map((u) => [u.id, u]));
+
+  // Incoming pending requests
+  const incomingPending = friendRequests.filter(
+    (fr) => fr.toUserId === userId && fr.status === "pending"
+  );
+  // Build a users map for the pending request senders
+  const pendingUsersMap = new Map(
+    incomingPending.map((fr) => {
+      const user = userMap.get(fr.fromUserId);
+      return [fr.fromUserId, { name: user?.name ?? "Unknown", email: user?.email ?? "" }];
+    })
+  );
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
@@ -223,6 +243,16 @@ export default async function NetworkPage() {
         )}
       </div>
 
+      {/* Pending Friend Requests */}
+      {incomingPending.length > 0 && (
+        <div className="mt-10">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-3">
+            Pending Friend Requests ({incomingPending.length})
+          </h2>
+          <PendingRequests requests={incomingPending} users={pendingUsersMap} />
+        </div>
+      )}
+
       {/* People on IGTP */}
       <div className="mt-10">
         <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-3">
@@ -241,7 +271,7 @@ export default async function NetworkPage() {
                   <div className="font-medium text-sm text-foreground">{user.name}</div>
                   <div className="text-xs text-muted-foreground">{user.email}</div>
                 </div>
-                <AddFriendButton userId={user.id} />
+                <AddFriendButton userId={user.id} friendRequests={friendRequests} />
               </div>
             ))}
           </div>
