@@ -1,5 +1,6 @@
+import { createHash } from "crypto";
 import { neon } from "@neondatabase/serverless";
-import type { Machine, AccessRequest, User, TrustConnection, Notification, GpuJob, JobUsageSnapshot, UsageReport, Invite } from "./types";
+import type { Machine, AccessRequest, User, TrustConnection, Notification, GpuJob, JobUsageSnapshot, UsageReport, Invite, ApiKey } from "./types";
 
 function getSql() {
   const url = process.env.DATABASE_URL;
@@ -702,4 +703,70 @@ export async function getInviterOfUser(userId: string): Promise<User | undefined
     LIMIT 1
   `;
   return rows[0] as User | undefined;
+}
+
+// ─── API Keys ────────────────────────────────────────────────────────────────
+
+function hashApiKey(key: string): string {
+  return createHash("sha256").update(key).digest("hex");
+}
+
+export function generateApiKey(): string {
+  const segments = Array.from({ length: 4 }, () =>
+    Math.random().toString(36).slice(2, 8)
+  );
+  return `igtp_${segments.join("_")}`;
+}
+
+const API_KEY_COLS = `
+  id,
+  user_id      AS "userId",
+  key_prefix   AS "keyPrefix",
+  label,
+  last_used_at AS "lastUsedAt",
+  created_at   AS "createdAt"
+`;
+
+export async function createApiKey(userId: string, label: string): Promise<{ apiKey: ApiKey; rawKey: string }> {
+  const sql = getSql();
+  const rawKey = generateApiKey();
+  const id = `apikey-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const now = new Date().toISOString();
+  const rows = await sql`
+    INSERT INTO api_keys (id, user_id, key_hash, key_prefix, label, created_at)
+    VALUES (${id}, ${userId}, ${hashApiKey(rawKey)}, ${rawKey.slice(0, 9)}, ${label}, ${now})
+    RETURNING ${sql.unsafe(API_KEY_COLS)}
+  `;
+  return { apiKey: rows[0] as ApiKey, rawKey };
+}
+
+export async function getApiKeysByUser(userId: string): Promise<ApiKey[]> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(API_KEY_COLS)} FROM api_keys
+    WHERE user_id = ${userId}
+    ORDER BY created_at DESC
+  `;
+  return rows as ApiKey[];
+}
+
+export async function validateApiKey(rawKey: string): Promise<string | null> {
+  const sql = getSql();
+  const hash = hashApiKey(rawKey);
+  const rows = await sql`
+    SELECT user_id, id FROM api_keys WHERE key_hash = ${hash}
+  `;
+  if (rows.length === 0) return null;
+  // Update last_used_at (fire-and-forget)
+  const now = new Date().toISOString();
+  sql`UPDATE api_keys SET last_used_at = ${now} WHERE id = ${rows[0].id}`.catch(() => {});
+  return rows[0].user_id as string;
+}
+
+export async function deleteApiKey(id: string, userId: string): Promise<boolean> {
+  const sql = getSql();
+  const rows = await sql`
+    DELETE FROM api_keys WHERE id = ${id} AND user_id = ${userId} RETURNING id
+  `;
+  return rows.length > 0;
 }

@@ -96,6 +96,15 @@ export interface Invite {
   acceptedAt: string | null;
 }
 
+export interface ApiKey {
+  id: string;
+  userId: string;
+  keyPrefix: string;
+  label: string;
+  lastUsedAt: string | null;
+  createdAt: string;
+}
+
 export interface UsageReport {
   userId: string;
   from: string;
