@@ -55,20 +55,18 @@ export async function POST(
   }
 
   // Create a job for this message (billing + daemon execution)
+  const fullHistory = [...history, { role: "user", content: content.trim() }];
+
   const job = await createJob({
     machineId: conversation.machineId,
     requesterId: userId,
     requestId: conversation.requestId,
-    command: content.trim(),
+    command: JSON.stringify(fullHistory), // Full history for daemon
     model: conversation.model,
-    prompt: content.trim(),
+    prompt: content.trim(), // Just the user's message for display
     jobType: "chat",
     conversationId: id,
   });
-
-  // Store conversation context in the job so the daemon can send full history
-  // We'll use the command field to pass serialized history
-  // The daemon will check for conversationId and load history
 
   return Response.json({
     jobId: job.id,

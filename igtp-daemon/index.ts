@@ -58,6 +58,7 @@ interface GpuJob {
   model: string | null;
   prompt: string | null;
   jobType: string;
+  conversationId: string | null;
   dockerImage: string;
   maxRuntimeSec: number;
   vramLimitGb: number | null;
@@ -183,10 +184,27 @@ async function executeOllamaJob(job: GpuJob): Promise<void> {
   console.log(`[igtp-daemon] Ollama job ${job.id}: ${job.jobType} with ${job.model}`);
 
   const isEmbedding = job.jobType === "embedding";
-  const endpoint = isEmbedding ? "/api/embed" : "/api/generate";
-  const body = isEmbedding
-    ? { model: job.model, input: job.prompt }
-    : { model: job.model, prompt: job.prompt, stream: false };
+  const endpoint = isEmbedding
+    ? "/api/embed"
+    : job.conversationId
+    ? "/api/chat"
+    : "/api/generate";
+
+  let body: Record<string, unknown>;
+  if (isEmbedding) {
+    body = { model: job.model, input: job.prompt };
+  } else if (job.conversationId) {
+    // Conversation mode: send full history via /api/chat
+    let messages: Array<{ role: string; content: string }>;
+    try {
+      messages = JSON.parse(job.command);
+    } catch {
+      messages = [{ role: "user", content: job.prompt ?? "" }];
+    }
+    body = { model: job.model, messages, stream: false };
+  } else {
+    body = { model: job.model, prompt: job.prompt, stream: false };
+  }
 
   try {
     const res = await fetch(`${OLLAMA_URL}${endpoint}`, {
@@ -213,7 +231,9 @@ async function executeOllamaJob(job: GpuJob): Promise<void> {
       };
       await reportCompletion(job.id, "completed", 0, null, outputText, tokens);
     } else {
-      const outputText = data.response ?? "";
+      const outputText = job.conversationId
+        ? (data.message?.content ?? "")
+        : (data.response ?? "");
       const tokens = {
         promptTokens: data.prompt_eval_count ?? 0,
         completionTokens: data.eval_count ?? 0,
