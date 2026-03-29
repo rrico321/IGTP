@@ -6,14 +6,15 @@
  * Vercel Blob, posts usage snapshots every 30 s, and reports completion.
  *
  * Environment variables required:
- *   IGTP_API_URL   — Base URL of the IGTP app (e.g. https://igtp.app)
- *   IGTP_MACHINE_ID — ID of this machine in the IGTP database
- *   CRON_SECRET    — Shared secret for authenticating daemon↔API calls
+ *   IGTP_API_URL      — Base URL of the IGTP app (e.g. https://igtp.vercel.app)
+ *   IGTP_MACHINE_ID   — ID of this machine in the IGTP database
+ *   IGTP_API_KEY      — API key generated at Settings > API Keys on the website
  *
  * Optional:
  *   BLOB_READ_WRITE_TOKEN — Vercel Blob token for log uploads
  *   POLL_INTERVAL_MS      — How often to poll for new jobs (default 10 000)
  *   SNAPSHOT_INTERVAL_MS  — How often to post usage snapshots (default 30 000)
+ *   HEARTBEAT_INTERVAL_MS — How often to send heartbeats (default 60 000)
  */
 
 import { spawn } from "child_process";
@@ -27,18 +28,24 @@ import { unlink } from "fs/promises";
 
 const API_URL = process.env.IGTP_API_URL ?? "http://localhost:3000";
 const MACHINE_ID = process.env.IGTP_MACHINE_ID;
-const CRON_SECRET = process.env.CRON_SECRET ?? "";
+const API_KEY = process.env.IGTP_API_KEY;
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS ?? 10_000);
 const SNAPSHOT_INTERVAL_MS = Number(process.env.SNAPSHOT_INTERVAL_MS ?? 30_000);
+const HEARTBEAT_INTERVAL_MS = Number(process.env.HEARTBEAT_INTERVAL_MS ?? 60_000);
 
 if (!MACHINE_ID) {
   console.error("[igtp-daemon] IGTP_MACHINE_ID is required");
   process.exit(1);
 }
 
-const HEADERS = {
+if (!API_KEY) {
+  console.error("[igtp-daemon] IGTP_API_KEY is required — generate one at your IGTP website under Settings > API Keys");
+  process.exit(1);
+}
+
+const HEADERS: Record<string, string> = {
   "Content-Type": "application/json",
-  "x-cron-secret": CRON_SECRET,
+  "Authorization": `Bearer ${API_KEY}`,
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -115,6 +122,22 @@ async function sampleUsage(): Promise<{ gpuUtilPct: number; vramUsedGb: number; 
     cpuUtilPct: 0,
     ramUsedGb: 0,
   };
+}
+
+// ─── Heartbeat ─────────────────────────────────────────────────────────────
+
+async function sendHeartbeat(): Promise<void> {
+  try {
+    const res = await fetch(`${API_URL}/api/machines/${MACHINE_ID}/heartbeat`, {
+      method: "POST",
+      headers: HEADERS,
+    });
+    if (!res.ok) {
+      console.error(`[igtp-daemon] Heartbeat failed: ${res.status}`);
+    }
+  } catch (err) {
+    console.error("[igtp-daemon] Heartbeat error:", err);
+  }
 }
 
 // ─── Job execution ────────────────────────────────────────────────────────────
@@ -208,6 +231,15 @@ async function poll() {
   }
 }
 
-console.log(`[igtp-daemon] Starting on machine ${MACHINE_ID}, polling every ${POLL_INTERVAL_MS}ms`);
+console.log(`[igtp-daemon] Starting on machine ${MACHINE_ID}`);
+console.log(`[igtp-daemon]   API: ${API_URL}`);
+console.log(`[igtp-daemon]   Poll interval: ${POLL_INTERVAL_MS}ms`);
+console.log(`[igtp-daemon]   Heartbeat interval: ${HEARTBEAT_INTERVAL_MS}ms`);
+
+// Immediate first heartbeat and poll
+sendHeartbeat();
+poll();
+
+// Recurring intervals
 setInterval(poll, POLL_INTERVAL_MS);
-poll(); // immediate first check
+setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
