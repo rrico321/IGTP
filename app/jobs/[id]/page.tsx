@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { getJobById, getSnapshotsForJob, getMachineById } from '@/lib/db'
 import { requireUserId } from '@/lib/auth'
 import { JobStatusBadge } from '@/app/components/StatusBadge'
+import { LocalTime } from '@/app/components/LocalTime'
 import { CancelJobButton } from './CancelJobButton'
 
 async function JobOutput({ url }: { url: string }) {
@@ -101,16 +102,16 @@ export default async function JobDetailPage({
       {/* Meta grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
         {[
-          { label: 'Queued', value: new Date(job.queuedAt).toLocaleString() },
-          { label: 'Started', value: job.startedAt ? new Date(job.startedAt).toLocaleString() : '—' },
-          { label: 'Completed', value: job.completedAt ? new Date(job.completedAt).toLocaleString() : '—' },
+          { label: 'Queued', node: <LocalTime date={job.queuedAt} /> },
+          { label: 'Started', node: job.startedAt ? <LocalTime date={job.startedAt} /> : null, value: '—' },
+          { label: 'Completed', node: job.completedAt ? <LocalTime date={job.completedAt} /> : null, value: '—' },
           { label: 'Runtime', value: runtimeSec != null ? (runtimeSec < 60 ? `${runtimeSec}s` : `${Math.round(runtimeSec / 60)}m`) : '—' },
           { label: 'Exit code', value: job.exitCode != null ? String(job.exitCode) : '—' },
           { label: 'Priority', value: String(job.priority) },
-        ].map(({ label, value }) => (
+        ].map(({ label, value, node }) => (
           <div key={label} className="bg-card border border-border rounded-lg p-3">
             <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
-            <p className="text-sm font-medium font-mono">{value}</p>
+            <p className="text-sm font-medium font-mono">{node ?? value}</p>
           </div>
         ))}
       </div>
