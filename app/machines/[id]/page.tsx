@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getMachineById } from '@/lib/db'
+import { getMachineById, getModelsForMachine } from '@/lib/db'
 import { MachineForm } from '../MachineForm'
 import { updateMachineAction, updateMachineStatusAction } from '../actions'
 import { MachineStatusBadge } from '@/app/components/StatusBadge'
@@ -30,6 +30,8 @@ export default async function MachineDetailPage({
 
   const machine = await getMachineById(id)
   if (!machine) notFound()
+
+  const models = await getModelsForMachine(id)
 
   const isEditing = edit === '1'
   const nextStatus = NEXT_STATUS[machine.status]
@@ -122,6 +124,34 @@ export default async function MachineDetailPage({
             >
               Requests
             </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Available Ollama Models */}
+      {models.length > 0 && !isEditing && (
+        <div className="bg-card border border-border rounded-xl p-6 mb-4 ring-1 ring-foreground/5">
+          <h2 className="text-sm font-medium mb-3">
+            Available Models <span className="text-muted-foreground font-normal">({models.length})</span>
+          </h2>
+          <div className="space-y-2">
+            {models.map((m) => (
+              <div key={m.modelName} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-foreground">{m.modelName}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${
+                    m.modelType === "embedding"
+                      ? "text-purple-400 border-purple-500/30"
+                      : "text-blue-400 border-blue-500/30"
+                  }`}>
+                    {m.modelType}
+                  </span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {m.sizeBytes ? `${(m.sizeBytes / 1e9).toFixed(1)} GB` : ""}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       )}
