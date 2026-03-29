@@ -63,9 +63,14 @@ export default async function JobsPage() {
                 className="block bg-card border border-border rounded-xl p-5 ring-1 ring-foreground/5 hover:ring-foreground/10 transition-all"
               >
                 <div className="flex items-start justify-between gap-4 mb-2">
-                  <code className="text-sm font-mono text-foreground truncate max-w-xs">
-                    {job.command}
-                  </code>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-foreground truncate">
+                      {job.prompt ?? job.command}
+                    </p>
+                    {job.model && (
+                      <p className="text-xs text-muted-foreground/50 font-mono mt-0.5">{job.model}</p>
+                    )}
+                  </div>
                   <JobStatusBadge status={job.status} />
                 </div>
 
@@ -76,6 +81,9 @@ export default async function JobsPage() {
                   )}
                   {runtimeSec != null && (
                     <span>{runtimeSec < 60 ? `${runtimeSec}s` : `${Math.round(runtimeSec / 60)}m`}</span>
+                  )}
+                  {job.totalTokens != null && (
+                    <span>{job.totalTokens.toLocaleString()} tokens</span>
                   )}
                   {job.dockerImage && (
                     <span className="font-mono">{job.dockerImage}</span>
