@@ -22,23 +22,24 @@ export async function POST(request: Request) {
   const schemaPath = path.join(process.cwd(), "lib", "schema.sql");
   const schema = readFileSync(schemaPath, "utf-8");
 
-  // Split on semicolons, strip comment-only lines, run each statement
-  const statements = schema
+  // Strip all SQL comments, then split on semicolons
+  const cleaned = schema.replace(/--[^\n]*/g, "");
+  const statements = cleaned
     .split(";")
-    .map((s) =>
-      s
-        .split("\n")
-        .filter((line) => !line.trimStart().startsWith("--"))
-        .join("\n")
-        .trim()
-    )
+    .map((s) => s.trim())
     .filter((s) => s.length > 0);
 
   const results: string[] = [];
+  const errors: string[] = [];
   for (const stmt of statements) {
-    await sql.unsafe(stmt);
-    results.push(stmt.split("\n")[0].substring(0, 60));
+    try {
+      await sql`${sql.unsafe(stmt)}`;
+      results.push(stmt.split("\n").filter(Boolean)[0]?.substring(0, 60) ?? "");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`${stmt.split("\n").filter(Boolean)[0]?.substring(0, 40)}: ${msg}`);
+    }
   }
 
-  return Response.json({ ok: true, ran: results.length, statements: results });
+  return Response.json({ ok: true, ran: results.length, errors, statements: results });
 }
