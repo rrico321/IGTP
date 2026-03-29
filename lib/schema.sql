@@ -173,6 +173,8 @@ CREATE TABLE IF NOT EXISTS conversation_messages (
 
 CREATE INDEX IF NOT EXISTS idx_conv_messages_conv ON conversation_messages(conversation_id, created_at);
 
+ALTER TABLE gpu_jobs ADD COLUMN IF NOT EXISTS conversation_id TEXT REFERENCES conversations(id);
+
 -- Seed data (idempotent via ON CONFLICT DO NOTHING)
 INSERT INTO users (id, name, email, created_at) VALUES
   ('user-1', 'Alice Chen', 'alice@example.com', '2026-03-01T00:00:00.000Z'),

@@ -74,6 +74,7 @@ export interface GpuJob {
   promptTokens: number | null;
   completionTokens: number | null;
   totalTokens: number | null;
+  conversationId: string | null;
   queuedAt: string;
   startedAt: string | null;
   completedAt: string | null;

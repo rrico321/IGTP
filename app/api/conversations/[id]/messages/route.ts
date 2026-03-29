@@ -63,6 +63,7 @@ export async function POST(
     model: conversation.model,
     prompt: content.trim(),
     jobType: "chat",
+    conversationId: id,
   });
 
   // Store conversation context in the job so the daemon can send full history

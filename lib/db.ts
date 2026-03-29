@@ -396,6 +396,7 @@ const JOB_COLS = `
   prompt_tokens     AS "promptTokens",
   completion_tokens AS "completionTokens",
   total_tokens      AS "totalTokens",
+  conversation_id   AS "conversationId",
   queued_at         AS "queuedAt",
   started_at        AS "startedAt",
   completed_at      AS "completedAt",
@@ -441,6 +442,7 @@ export async function createJob(data: {
   model?: string;
   prompt?: string;
   jobType?: string;
+  conversationId?: string;
 }): Promise<GpuJob> {
   const sql = getSql();
   const id = `job-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -449,7 +451,7 @@ export async function createJob(data: {
     INSERT INTO gpu_jobs (
       id, machine_id, requester_id, request_id, command, docker_image,
       priority, status, max_runtime_sec, vram_limit_gb, cpu_limit_cores,
-      ram_limit_gb, model, prompt, job_type,
+      ram_limit_gb, model, prompt, job_type, conversation_id,
       queued_at, created_at, updated_at
     ) VALUES (
       ${id}, ${data.machineId}, ${data.requesterId}, ${data.requestId},
@@ -458,6 +460,7 @@ export async function createJob(data: {
       ${data.vramLimitGb ?? null}, ${data.cpuLimitCores ?? null},
       ${data.ramLimitGb ?? null},
       ${data.model ?? null}, ${data.prompt ?? null}, ${data.jobType ?? 'chat'},
+      ${data.conversationId ?? null},
       ${now}, ${now}, ${now}
     )
     RETURNING ${sql.unsafe(JOB_COLS)}
@@ -467,7 +470,7 @@ export async function createJob(data: {
 
 export async function updateJob(
   id: string,
-  updates: Partial<Pick<GpuJob, "status" | "priority" | "exitCode" | "outputLogUrl" | "outputLog" | "model" | "prompt" | "jobType" | "promptTokens" | "completionTokens" | "totalTokens" | "startedAt" | "completedAt">>
+  updates: Partial<Pick<GpuJob, "status" | "priority" | "exitCode" | "outputLogUrl" | "outputLog" | "model" | "prompt" | "jobType" | "promptTokens" | "completionTokens" | "totalTokens" | "conversationId" | "startedAt" | "completedAt">>
 ): Promise<GpuJob | null> {
   const existing = await getJobById(id);
   if (!existing) return null;
@@ -488,6 +491,7 @@ export async function updateJob(
       prompt_tokens     = ${merged.promptTokens ?? null},
       completion_tokens = ${merged.completionTokens ?? null},
       total_tokens      = ${merged.totalTokens ?? null},
+      conversation_id   = ${merged.conversationId ?? null},
       started_at      = ${merged.startedAt ?? null},
       completed_at    = ${merged.completedAt ?? null},
       updated_at      = ${now}
