@@ -62,13 +62,9 @@ IGTP is currently **invitation-only** to keep the community trusted and safe. Yo
 
 ## Step 2: Create Your Account
 
-After clicking the invitation link, you'll be taken to a sign-up page.
+After clicking the invitation link, you'll be taken to a sign-up page where you enter your **name** — this is what your friends will see on the platform.
 
-1. Enter your **name** (this is what your friends will see).
-2. Enter your **email address** (it may already be filled in).
-3. Create a **password** — make it something memorable but secure. At least 8 characters is recommended.
-4. Click the green **"Create Account"** button.
-5. You'll be logged in automatically and taken to your home page.
+That's it! IGTP uses a simple login system — no passwords to remember. Just select your name from the login page to sign in.
 
 ## Step 3: Explore the App
 
@@ -82,7 +78,7 @@ Once you're in, you'll see the main navigation bar at the top with these section
 
 ## Already Have an Account?
 
-Just go to the IGTP website and click **"Sign In"**. Enter your email and password to log in.`,
+Just go to the IGTP website and select your name from the login page.`,
   },
   {
     id: 'what-do-i-need',
@@ -124,6 +120,7 @@ Minimum recommended:
 
 1. **Ollama** — the free program that runs AI models (we'll walk you through installing it)
 2. **The IGTP daemon** — a small background program that connects your computer to IGTP (we'll walk you through this too)
+3. **Node.js 20+** — required to run the daemon (the installer will help you install it if needed)
 
 ### Your Account
 
@@ -167,7 +164,7 @@ Yes. The daemon:
 
 ## Do I Need It Running All the Time?
 
-Only when you want your machine to be available. If you're using your computer for something intensive (gaming, video editing, etc.), you can pause the daemon and it will show your machine as "offline" to your friends.`,
+Only when you want your machine to be available. If you're using your computer for something intensive (gaming, video editing, etc.), you can stop the daemon and it will show your machine as "offline" to your friends.`,
   },
   {
     id: 'how-to-install-ollama',
@@ -241,42 +238,42 @@ Once you have models installed, the IGTP daemon will detect them automatically a
 
 The IGTP daemon is a small helper program that connects your computer to IGTP. Here's how to install it step by step.
 
-> **Before you start:** Make sure Ollama is installed and running (see "How to install Ollama"). Also make sure you're logged into your IGTP account — you'll need to copy a token during this process.
+> **Before you start:** Make sure Ollama is installed and running (see "How to install Ollama"). Also make sure you're logged into your IGTP account — you'll need to generate an API key during this process.
 
 ---
 
-## Step 1: Get Your Daemon Token
+## Step 1: Generate an API Key
 
-The daemon token is like a password that proves to IGTP that this daemon belongs to your account.
+The daemon needs an API key to authenticate with IGTP.
 
 1. Log in to IGTP at the website
-2. Click **"Settings"** in the top navigation bar
-3. You'll see a section called **"Daemon Setup"** or you can go to **Settings → My Machines** and click **"Add Machine"**
-4. Copy the token that appears — it will look something like **igtp_abc123...**
+2. Click **"Settings"** in the navigation bar
+3. Click **"API Keys"**
+4. Click **"Generate API Key"** and give it a label like "My Machine"
+5. Copy the key — it will look something like **igtp_xxxx_xxxx_xxxx_xxxx**
 
-> **Keep this token private!** Anyone with this token could register a machine under your account. Don't share it.
+> **Keep this key private!** Anyone with this key could act as you. Don't share it publicly.
 
 ---
 
-## Step 2: Install on Mac
+## Step 2: Install on Mac or Linux
 
 1. Open a **Terminal** window:
-   - Press **Command + Space**, type "Terminal", and press Enter
-   - Or open Finder → Applications → Utilities → Terminal
+   - **Mac:** Press **Command + Space**, type "Terminal", and press Enter
+   - **Linux:** Press **Ctrl + Alt + T**
 
 2. Copy and paste this command into Terminal and press Enter:
 
     curl -fsSL https://igtp.vercel.app/install.sh | sh
 
-3. The installer will ask for your **daemon token** — paste it in and press Enter
-4. It will ask for a **machine name** — type something like "Home Desktop" or "MacBook Pro" and press Enter
-5. The daemon installs and starts automatically
-
-You should see something like:
-
-    IGTP daemon installed
-    Machine registered: Home Desktop
-    Daemon started
+3. The installer will:
+   - Check for Node.js 20+ (and help install it if needed)
+   - Ask you to **paste your API key**
+   - Auto-detect your hardware (GPU, CPU, RAM) or ask you to enter it manually
+   - Ask for a **machine name** (e.g., "Home Desktop" or "MacBook Pro")
+   - Register your machine with IGTP
+   - Install the daemon to **~/.igtp/**
+   - Set up auto-start
 
 ---
 
@@ -292,33 +289,19 @@ You should see something like:
 
     irm https://igtp.vercel.app/install.ps1 | iex
 
-3. The installer will ask for your **daemon token** — paste it in and press Enter
-4. It will ask for a **machine name** — type something like "Gaming PC" and press Enter
-5. The daemon installs and registers as a Windows service (it will start automatically when Windows starts)
+3. Follow the same prompts as Mac/Linux (API key, hardware, machine name)
 
 ---
 
-## Step 4: Install on Linux
-
-1. Open a **Terminal** window
-2. Run:
-
-    curl -fsSL https://igtp.vercel.app/install.sh | sh
-
-3. Enter your daemon token and machine name when prompted
-4. The daemon will be installed as a systemd service
-
----
-
-## Step 5: Verify It Worked
+## Step 4: Verify It Worked
 
 After installation, go back to IGTP in your browser:
 
 1. Click **"My Machines"** in the navigation bar
-2. You should see your machine listed with a **green "Online"** badge
+2. You should see your machine listed with a **green dot** indicating it's online
 3. If you have models in Ollama, you'll see them listed under your machine
 
-> **Seeing "Offline" instead?** See the Troubleshooting section for help.`,
+> **Seeing it as offline?** See the Troubleshooting section for help.`,
   },
   {
     id: 'manage-daemon',
@@ -326,7 +309,7 @@ After installation, go back to IGTP in your browser:
     title: 'How to manage the daemon (start, stop, status, logs)',
     content: `# How to manage the daemon
 
-Once the IGTP daemon is installed, you can control it from your Terminal or PowerShell at any time.
+Once the IGTP daemon is installed, you can control it from your Terminal or PowerShell at any time. The daemon installs to **~/.igtp/** and provides a simple CLI.
 
 ## Opening a Terminal or PowerShell
 
@@ -340,16 +323,9 @@ Once the IGTP daemon is installed, you can control it from your Terminal or Powe
 
 ## Check Status
 
-To see if the daemon is running, type this and press Enter:
+To see if the daemon is running:
 
-    igtp status
-
-You'll see something like:
-
-    Status: Running
-    Machine: Home Desktop
-    Connected: Yes
-    Models available: 3
+    ~/.igtp/igtp status
 
 ---
 
@@ -357,7 +333,7 @@ You'll see something like:
 
 If you want to make your machine appear offline (for example, when you're gaming or doing something intensive):
 
-    igtp stop
+    ~/.igtp/igtp stop
 
 Your machine will show as **"Offline"** in IGTP. Friends won't be able to send new jobs to it.
 
@@ -367,7 +343,7 @@ Your machine will show as **"Offline"** in IGTP. Friends won't be able to send n
 
 To bring your machine back online:
 
-    igtp start
+    ~/.igtp/igtp start
 
 Your machine will show as **"Online"** again within a few seconds.
 
@@ -377,41 +353,23 @@ Your machine will show as **"Online"** again within a few seconds.
 
 Logs show you what's happening with the daemon — what jobs ran, any errors, etc.
 
-    igtp logs
-
-To see the last 50 log entries:
-
-    igtp logs --tail 50
-
-Logs look like:
-
-    2024-01-15 10:23:45  INFO  Job received: job_abc123
-    2024-01-15 10:23:45  INFO  Forwarding to Ollama (model: llama3)
-    2024-01-15 10:23:52  INFO  Job complete: 312 tokens generated
+    ~/.igtp/igtp logs
 
 ---
 
-## Restart the Daemon
+## Uninstall
 
-If the daemon seems stuck or isn't responding:
+To completely remove the daemon from your machine:
 
-    igtp restart
+    ~/.igtp/igtp uninstall
 
 ---
 
 ## Does It Start Automatically?
 
-**Mac and Linux:** Yes, the daemon is set up as a background service that starts when you log in.
+**Mac and Linux:** Yes, the daemon is set up as a launchd/systemd service that starts when you log in.
 
-**Windows:** Yes, it runs as a Windows service that starts with Windows.
-
-To disable auto-start (if you only want to run it manually):
-
-    igtp disable-autostart
-
-To re-enable auto-start:
-
-    igtp enable-autostart`,
+**Windows:** Yes, it runs as a scheduled task that starts with Windows.`,
   },
   {
     id: 'approve-access-requests',
@@ -430,27 +388,16 @@ When someone sends you a request, you'll see:
 
 ## How to Approve or Deny
 
-### Option 1: From the Notification Bell
+1. Click the **bell icon** in the navigation bar to see notifications
+2. Find the notification about the access request
+3. Navigate to the machine's request page
 
-1. Click the **bell icon** in the top right of the navigation bar
-2. You'll see a list of notifications
-3. Find the notification that says "[Friend's name] has requested access to [Your Machine Name]"
-4. Click **"View Request"** on that notification
+On the request page, you'll see:
 
-### Option 2: From the Network Page
+- **Green "Approve" button** — Click this to allow access. The friend will be notified and can start using your machine.
+- **Red "Deny" button** — Click this to decline. The friend will be notified that their request was denied.
 
-1. Click **"Network"** in the top navigation bar
-2. Look for the **"Incoming Requests"** section
-3. You'll see cards for each pending request, showing who is requesting access and to which machine
-
-### Approving the Request
-
-On the request card, you'll see two buttons:
-
-- **Green "Approve" button** — Click this to allow access. The friend will be notified and can start using your machine right away.
-- **Red "Deny" button** — Click this to decline. The friend won't be able to use your machine.
-
-> **You can also add a note** in the text box before approving or denying — for example, "Approved! Let me know if you have any issues."
+You can also add a note before approving or denying.
 
 ## Managing Existing Access
 
@@ -458,9 +405,7 @@ To see who currently has access to your machines:
 
 1. Click **"My Machines"** in the navigation bar
 2. Click on a machine name to see its details
-3. You'll see a list of users who have access
-
-To **revoke access** from someone, click the **"Revoke"** button next to their name. They'll see your machine as unavailable immediately.`,
+3. You'll see requests and their statuses`,
   },
   {
     id: 'what-happens-when-someone-uses-my-machine',
@@ -473,11 +418,11 @@ Here's exactly what happens behind the scenes when a friend uses your shared mac
 ## The Flow, Step by Step
 
 1. **Your friend types a message** in the IGTP chat interface
-2. **IGTP sends the request** to its servers
-3. **The IGTP daemon on your computer** picks up the request (it's always checking for new work)
-4. **Your daemon passes it to Ollama**, which is running on your computer
+2. **IGTP creates a job** and stores it in the database
+3. **The IGTP daemon on your computer** polls for new jobs (checking every few seconds)
+4. **Your daemon passes the request to Ollama**, which is running on your computer
 5. **Ollama generates the response** using your GPU — this is the part that uses your hardware
-6. **Your daemon streams the response back** to IGTP's servers
+6. **Your daemon sends the response back** to IGTP's servers
 7. **Your friend sees the response** appear in their chat window
 
 ## What You'll See
@@ -486,13 +431,6 @@ While a job is running, you generally won't notice anything different unless you
 
 - Your GPU usage will go up (you can see this in Task Manager on Windows or Activity Monitor on Mac)
 - The IGTP daemon logs will show the job being processed
-- On the IGTP website, you can see your machine's **"Active Jobs"** count
-
-## What You WON'T See
-
-- You **cannot** see your friend's conversation content in real time
-- You **don't** see who is chatting or what they're saying by default
-- Your friend's data is sent through encrypted connections
 
 ## Does It Slow Down My Computer?
 
@@ -500,11 +438,11 @@ It depends on your hardware:
 
 - **On a dedicated GPU:** Usually no impact on your regular computer tasks (browsing, documents, etc.). The GPU handles AI work separately.
 - **On integrated graphics or shared memory:** You may notice some slowdown.
-- **On CPU-only systems:** There could be significant slowdown, which is why a dedicated GPU is recommended.
+- **On Apple Silicon Macs:** The unified memory architecture means AI work shares memory with the rest of the system, but performance impact is usually minimal.
 
 ## Can I Pause It?
 
-Yes, at any time. Just run **igtp stop** in your Terminal. Your machine will appear offline and no new jobs will be sent. Any in-progress job will complete first.
+Yes, at any time. Just run **~/.igtp/igtp stop** in your Terminal. Your machine will appear offline and no new jobs will be sent.
 
 ## Usage History
 
@@ -516,7 +454,7 @@ You can see a log of all jobs that ran on your machine by going to **Settings �
     title: 'How to browse available machines',
     content: `# How to browse available machines
 
-The **Browse** page shows all machines that people in your trust network have shared with you (or are available to request).
+The **Browse** page shows all machines that people in your trust network have shared.
 
 ## Getting to Browse
 
@@ -528,30 +466,28 @@ Each card shows:
 
 - **Machine name** — The nickname the owner gave it (e.g., "Home Desktop", "Gaming Rig")
 - **Owner's name** — Whose machine it is
-- **Status badge:**
-  - Green **Online** — The daemon is running and ready to accept jobs
-  - Red **Offline** — The daemon isn't running (owner may have stopped it)
-- **GPU information** — What graphics card the machine has (e.g., "NVIDIA RTX 4090")
+- **Status indicator:**
+  - Green dot = **Online** — The daemon is running and ready to accept jobs
+  - Gray dot = **Offline** — The daemon isn't running
+- **GPU information** — What graphics card the machine has (e.g., "NVIDIA RTX 4090") and VRAM
 - **Available models** — The AI models installed on this machine
-- **Access status:**
-  - **"Request Access"** — You can ask to use this machine
-  - **"Pending"** — You've already requested and are waiting for approval
-  - **"Approved"** — You have access and can start chatting
 
-## Filtering Machines
+## Searching and Filtering
 
-At the top of the Browse page, you can filter by:
+At the top of the Browse page, you can:
 
-- **Status** — Show only online machines
-- **Model** — Filter by a specific AI model you want to use
+- **Search** by machine name or GPU model
+- **Filter by GPU model** — Select a specific GPU type
+- **Filter by minimum VRAM** — Only show machines with enough memory for your needs
+- **Show all statuses** — Toggle to include offline machines in the results
 
 ## What If I Don't See Any Machines?
 
 A few reasons why the list might be empty:
 
-1. **You haven't connected with anyone yet** — Go to the Network page to connect with friends first. See "How the trust network works" for details.
-2. **Your friends haven't shared their machines** — Not everyone sets up machine sharing. You may need to ask them.
-3. **All machines are offline** — Check back later when your friends' computers are on.`,
+1. **You haven't connected with anyone yet** — Go to the Network page to add friends first
+2. **Your friends haven't shared their machines** — Not everyone sets up machine sharing
+3. **All machines are offline** — Check back later when your friends' computers are on`,
   },
   {
     id: 'request-access-to-machine',
@@ -565,21 +501,19 @@ Once you've found a machine you want to use, here's how to request access.
 
 1. Go to the **Browse** page (click "Browse" in the navigation bar)
 2. Find the machine you want to use
-3. Make sure it's **Online** (green badge) — if it's offline, you can still request but won't be able to use it until it's back online
 
 ## Step 2: Send the Request
 
 1. Click the **"Request Access"** button on the machine card
-2. A small dialog box will appear
-3. You can optionally add a **message** to the owner — for example: "Hey! Would love to try out your setup." This is a nice touch but not required.
-4. Click the **"Send Request"** button
+2. Fill in the request details — describe what you want to use the machine for and how long you need it
+3. Submit the request
 
 ## Step 3: Wait for Approval
 
 After sending the request:
 
 - The machine's owner will receive a notification
-- The button on the machine card will now show **"Pending"**
+- Your request will show as **"Pending"**
 - You'll receive a notification when they approve or deny your request
 
 **Typical wait times:** This depends entirely on when your friend checks the app. It could be a few minutes or a few hours.
@@ -588,13 +522,12 @@ After sending the request:
 
 When the owner approves your request:
 
-- You'll see a notification: "[Owner's name] approved your request for [Machine Name]"
-- The machine card now shows **"Approved"** or an **"Open Chat"** button
+- You'll see a notification
 - You can now go to the **Chat** page and start a conversation using that machine
 
 ## What If My Request is Denied?
 
-If the owner clicks "Deny," you'll see a notification saying your request was declined. You can try reaching out to them directly to discuss, or look for other machines to request access to.
+If the owner denies your request, you'll see a notification. You can try reaching out to them directly, or look for other machines to request access to.
 
 ## How Many Machines Can I Request?
 
@@ -610,42 +543,36 @@ Once you have approved access to at least one machine, you can start chatting wi
 
 ## Step 1: Go to Chat
 
-Click **"Chat"** in the top navigation bar. You'll see your conversation history (empty at first).
+Click **"Chat"** in the top navigation bar.
 
 ## Step 2: Start a New Conversation
 
-Click the **"New Conversation"** button (usually a "+" button or a prominent button at the top).
+Click the **"+ New"** button in the sidebar.
 
-A dialog will appear asking you to choose:
+A form will appear asking you to choose:
 
 1. **Machine** — Select which friend's machine to use from the dropdown
 2. **Model** — Select which AI model to use from the list
 
-> **Tip:** The dialog only shows machines where you have **approved access** and the machine is **online**. If a machine you expected to see isn't showing, it may be offline.
+> **Note:** The form only shows machines where you have **approved access** and the machine is **online**.
 
-## Step 3: Name Your Conversation (Optional)
-
-You can give the conversation a name (like "Brainstorming ideas" or "Python help"). This makes it easier to find later. If you skip this, it'll be named automatically.
-
-Click **"Start Conversation"**.
-
-## Step 4: Chat!
+## Step 3: Chat!
 
 You're now in the chat window.
 
 1. Type your message in the **text box at the bottom** of the screen
-2. Press **Enter** or click the **"Send"** button (looks like a paper airplane)
-3. You'll see the response appear above, with a loading animation while the AI thinks
+2. Press **Enter** or click the **send** button
+3. The AI response will appear above — it streams in as the model generates it
 
 ## Understanding the Response
 
-- Responses stream in word-by-word in real time — you don't have to wait for the whole thing to appear
-- The response may use **formatting** like bold text, code blocks, and lists
+- Responses stream in as the AI generates them
+- The response may use **formatting** like bold text, code blocks, and lists (rendered as markdown)
 - After each response, you can keep the conversation going by typing your next message
 
 ## Going Back to Other Conversations
 
-Click the **"Chat"** link in the navigation bar to see all your conversations and switch between them.`,
+Click on any conversation in the sidebar to switch between them.`,
   },
   {
     id: 'use-different-models',
@@ -662,12 +589,13 @@ An AI **model** is like a different "brain" you can talk to. Each model was trai
 - **codellama** — Specialized for programming and code
 - **phi3, phi4** — Small but capable, fast responses
 - **gemma** — Google's model, good at reasoning
+- **qwen** — Alibaba's model family, various sizes available
 
-The models available to you depend on what the machine owner has installed.
+The models available to you depend on what the machine owner has installed in Ollama.
 
 ## Starting a Conversation with a Specific Model
 
-When you click **"New Conversation"**, the dialog shows you a list of available models. Simply select the one you want to try.
+When you click **"+ New"** in the Chat sidebar, the form shows you a list of available models on the selected machine. Simply select the one you want to try.
 
 ## Switching Models Mid-Conversation
 
@@ -693,11 +621,11 @@ If you're not sure, start with **llama3** — it's the most balanced general-pur
 
 ## Model Sizes
 
-You may see models like **llama3:8b** or **llama3:70b**. The number refers to the model's "size" in billions of parameters:
+You may see models like **llama3:8b** or **qwen3:30b**. The number refers to the model's "size" in billions of parameters:
 - **8b** — Smaller, faster, uses less GPU memory, slightly less capable
-- **70b** — Larger, slower, needs more GPU memory, more capable
+- **30b+** — Larger, slower, needs more GPU memory, more capable
 
-For most everyday tasks, the 8b version is excellent.`,
+For most everyday tasks, smaller models work great.`,
   },
   {
     id: 'what-are-tokens',
@@ -725,63 +653,19 @@ Token counts are important because:
 
 ## Where to See Token Counts
 
-In the chat window, after each response you'll see a small token count showing how many tokens were used for that exchange.
-
-In **Settings → Jobs**, you can see a detailed breakdown of token usage across all your conversations.
+In **Settings → Jobs**, you can see a breakdown of token usage for each job, including prompt tokens, completion tokens, and total tokens.
 
 ## Why Does the Machine Owner Care?
 
-If you're using someone else's GPU, the token count tells both of you how much work your computer is doing. It's a measure of "compute used."
+If you're using someone else's GPU, the token count tells both of you how much work the computer is doing. It's a measure of "compute used."
 
-Currently, IGTP is a trust-based, free-to-use platform among friends — there's no per-token billing between users. But the token count helps machine owners understand their usage and make sure it's reasonable.
+Currently, IGTP is a trust-based, free-to-use platform among friends — there's no per-token billing between users. But the token count helps machine owners understand their usage.
 
 ## Context Window
 
 There's also a limit called the **context window** — the maximum number of tokens a model can "hold in memory" during a conversation. Most models support 8,000–128,000 tokens of context.
 
 If a conversation gets very long, older messages may be dropped from the model's memory to stay within this limit. The app handles this automatically, but be aware that very long conversations may "forget" early messages.`,
-  },
-  {
-    id: 'how-to-start-new-conversation',
-    category: 'Chat',
-    title: 'How to start a new conversation',
-    content: `# How to start a new conversation
-
-## Getting to the Chat Page
-
-Click **"Chat"** in the top navigation bar.
-
-## Starting Fresh
-
-1. Click the **"New Conversation"** button at the top of the conversations list
-2. Choose a **machine** from the dropdown — this is the friend's computer you'll use
-3. Choose a **model** — the AI brain you want to talk to
-4. Optionally, type a name for this conversation so you can find it later
-5. Click **"Start Conversation"**
-
-You'll be taken directly into the new conversation, ready to type.
-
-## What If No Machines Are Available?
-
-The dropdown will be empty if:
-- You haven't been approved for any machines yet (see "How to request access to a machine")
-- All approved machines are currently offline (the owner turned off their daemon)
-
-In this case, try requesting access to a friend's machine or check back when their machine is online.
-
-## Tips for Your First Message
-
-The AI model doesn't know who you are or why you're messaging. Give it context in your first message:
-
-**Instead of:** "Help me."
-**Try:** "I'm writing a short story about a detective in 1920s Paris. Help me brainstorm some plot ideas."
-
-**Instead of:** "Explain this."
-**Try:** "Can you explain what a REST API is in simple terms? I'm a beginner at programming."
-
-## Continuing an Existing Conversation
-
-Click on any conversation in the list on the Chat page to continue it. All previous messages will be there, and the AI will remember the context.`,
   },
   {
     id: 'how-conversations-remember-context',
@@ -819,13 +703,13 @@ IGTP handles this automatically. You might notice the AI seems to "forget" somet
 
 ## Conversations Don't Carry Over
 
-Each conversation starts completely fresh. If you start a **New Conversation**, the AI has no idea what you discussed in your previous conversations. It only knows what's in the current conversation window.
+Each conversation starts completely fresh. If you start a new conversation, the AI has no idea what you discussed in your previous conversations. It only knows what's in the current conversation window.
 
 ## Tips for Managing Context
 
 - **Be explicit when switching topics** — say "I want to switch topics now and ask about..."
 - **For coding sessions** — paste the relevant code snippet again if you've been chatting for a long time
-- **Start a new conversation** when you genuinely want a completely fresh start (different project, different topic)`,
+- **Start a new conversation** when you genuinely want a completely fresh start`,
   },
   {
     id: 'manage-conversations',
@@ -835,42 +719,25 @@ Each conversation starts completely fresh. If you start a **New Conversation**, 
 
 ## Viewing All Your Conversations
 
-Click **"Chat"** in the navigation bar. You'll see a list of all your conversations, ordered by most recent activity.
+Click **"Chat"** in the navigation bar. You'll see a sidebar listing all your conversations, ordered by most recent activity.
 
 Each conversation shows:
-- The name you gave it (or an auto-generated name)
-- The machine and model used
+- The title
+- The model used
 - When it was last active
-
-## Renaming a Conversation
-
-To rename a conversation:
-1. Click on the conversation to open it
-2. Click the conversation name at the top of the chat
-3. Type a new name and press Enter
-
-Keeping conversations named clearly helps you find them later.
 
 ## Deleting a Conversation
 
 If you want to remove a conversation:
-1. On the Chat page, find the conversation in the list
-2. Click the **three-dot menu** or the **trash icon** next to the conversation
-3. Confirm the deletion when prompted
+1. On the Chat page, find the conversation in the sidebar
+2. Click the **trash icon** next to the conversation
+3. The conversation will be deleted
 
 > **Warning:** Deleted conversations cannot be recovered. All messages in that conversation will be permanently gone.
 
-## Is There a Limit on Conversations?
-
-There's no hard limit on how many conversations you can have. However, very old or inactive conversations might eventually be cleaned up. It's good practice to delete conversations you no longer need.
-
-## Searching Conversations
-
-Currently, conversation search isn't available. The best way to find past conversations is to give them descriptive names when you create them.
-
 ## What Happens If the Machine Goes Offline?
 
-If a machine goes offline while you're mid-conversation:
+If a machine goes offline while you have a conversation open:
 - Messages you've already sent and received are still there
 - You can't send new messages until the machine comes back online
 - The conversation stays saved — you can resume it when the machine is back`,
@@ -990,7 +857,7 @@ The API follows the same rules as the website — you can only use machines you 
     title: 'How to generate an API key',
     content: `# How to generate an API key
 
-An **API key** is like a special password that your programs use to identify themselves to IGTP. Instead of using your email and password, your code uses the API key.
+An **API key** is like a special password that your programs use to identify themselves to IGTP.
 
 ## Step 1: Go to Settings
 
@@ -998,14 +865,13 @@ Click **"Settings"** in the top navigation bar.
 
 ## Step 2: Navigate to API Keys
 
-Click **"API Keys"** in the Settings menu. You'll see the API Keys management page.
+Click **"API Keys"** in the Settings page. You'll see the API Keys management page.
 
 ## Step 3: Create a New Key
 
-1. Click the **"Generate New Key"** button
-2. Give your key a descriptive name — for example, "My Python script" or "Home automation"
-3. Click **"Create"**
-4. Your new API key will appear on screen — it will start with **igtp_sk_** followed by a long string of characters
+1. Enter a descriptive label — for example, "My Python script" or "Home automation"
+2. Click **"Generate API Key"**
+3. Your new API key will appear on screen — it will look something like **igtp_xxxx_xxxx_xxxx_xxxx**
 
 ## Step 4: Copy and Save Your Key
 
@@ -1015,16 +881,16 @@ If you lose it, you'll need to delete it and generate a new one.
 
 ## Using Your API Key
 
-In your code or API client, you'll include the key in the request headers:
+In your code or API client, include the key in the request headers:
 
-    Authorization: Bearer igtp_sk_your_key_here
+    Authorization: Bearer igtp_xxxx_xxxx_xxxx_xxxx
 
 ## Managing Your Keys
 
 On the API Keys page, you can:
-- See all your existing keys (the full value is hidden after creation — only the first/last few characters are shown)
-- Delete keys you no longer need
-- Generate new keys at any time
+- See all your existing keys (only the prefix is shown after creation)
+- See when each key was last used
+- Delete keys you no longer need by clicking the delete button
 
 ## Security Tips
 
@@ -1048,8 +914,6 @@ Make sure you have:
 - The ID of a machine you have access to
 - A model name available on that machine
 
-**Finding your machine ID:** Go to My Machines, click a machine, and the ID is in the URL (looks like **mch_abc123**).
-
 ## Chat Endpoint
 
     POST /api/ollama/chat
@@ -1059,7 +923,7 @@ Make sure you have:
 Send a JSON body with these fields:
 
     {
-      "machineId": "mch_abc123",
+      "machineId": "machine-1234567890",
       "model": "llama3",
       "messages": [
         {
@@ -1074,16 +938,16 @@ Send a JSON body with these fields:
 Open a Terminal and run:
 
     curl -X POST https://igtp.vercel.app/api/ollama/chat \\
-      -H "Authorization: Bearer igtp_sk_your_key_here" \\
+      -H "Authorization: Bearer igtp_xxxx_xxxx_xxxx_xxxx" \\
       -H "Content-Type: application/json" \\
-      -d '{"machineId":"mch_abc123","model":"llama3","messages":[{"role":"user","content":"What is the capital of France?"}]}'
+      -d '{"machineId":"machine-1234567890","model":"llama3","messages":[{"role":"user","content":"What is the capital of France?"}]}'
 
 ## Response
 
 The API returns a job ID immediately (the request is processed asynchronously):
 
     {
-      "jobId": "job_xyz789",
+      "jobId": "job-1234567890",
       "status": "queued"
     }
 
@@ -1094,7 +958,7 @@ Then use the job ID to check for the result (see "How to check job results").
 To maintain conversation history, include all previous messages:
 
     {
-      "machineId": "mch_abc123",
+      "machineId": "machine-1234567890",
       "model": "llama3",
       "messages": [
         {"role": "user", "content": "My name is Alice."},
@@ -1126,44 +990,30 @@ This is more of a developer/data science use case. If you just want to chat, you
 ## Request Format
 
     {
-      "machineId": "mch_abc123",
-      "model": "nomic-embed-text",
+      "machineId": "machine-1234567890",
+      "model": "mxbai-embed-large",
       "input": "The quick brown fox jumps over the lazy dog"
     }
 
-> **Note:** Use an embedding-specific model like **nomic-embed-text** or **mxbai-embed-large**, not a chat model like llama3. Ask the machine owner what embedding models they have installed.
+> **Note:** Use an embedding-specific model like **mxbai-embed-large** or **nomic-embed-text**, not a chat model like llama3. Check the machine's model list to see what embedding models are available.
 
 ## Example Using curl
 
     curl -X POST https://igtp.vercel.app/api/ollama/embed \\
-      -H "Authorization: Bearer igtp_sk_your_key_here" \\
+      -H "Authorization: Bearer igtp_xxxx_xxxx_xxxx_xxxx" \\
       -H "Content-Type: application/json" \\
-      -d '{"machineId":"mch_abc123","model":"nomic-embed-text","input":"The quick brown fox"}'
+      -d '{"machineId":"machine-1234567890","model":"mxbai-embed-large","input":"The quick brown fox"}'
 
 ## Response
 
 Like chat requests, embedding requests are processed asynchronously:
 
     {
-      "jobId": "job_emb456",
+      "jobId": "job-1234567890",
       "status": "queued"
     }
 
-Poll for the result using the job ID (see "How to check job results"). The final result will contain a vector of floating-point numbers representing the embedding.
-
-## Batch Embeddings
-
-To embed multiple texts at once, you can send an array:
-
-    {
-      "machineId": "mch_abc123",
-      "model": "nomic-embed-text",
-      "input": [
-        "First document text here",
-        "Second document text here",
-        "Third document text here"
-      ]
-    }`,
+Poll for the result using the job ID (see "How to check job results").`,
   },
   {
     id: 'api-check-job-results',
@@ -1181,68 +1031,28 @@ Think of it like placing an order at a counter: you get a ticket number right aw
 
 ## Example: Checking a Job
 
-    curl -X GET https://igtp.vercel.app/api/jobs/job_xyz789 \\
-      -H "Authorization: Bearer igtp_sk_your_key_here"
-
-## Response: Job in Progress
-
-If the job is still running:
-
-    {
-      "id": "job_xyz789",
-      "status": "running",
-      "createdAt": "2024-01-15T10:23:45Z"
-    }
-
-## Response: Job Complete
-
-When the job finishes:
-
-    {
-      "id": "job_xyz789",
-      "status": "completed",
-      "result": {
-        "message": {
-          "role": "assistant",
-          "content": "The capital of France is Paris."
-        },
-        "usage": {
-          "promptTokens": 12,
-          "completionTokens": 8,
-          "totalTokens": 20
-        }
-      },
-      "completedAt": "2024-01-15T10:23:52Z"
-    }
-
-## Response: Job Failed
-
-If something went wrong:
-
-    {
-      "id": "job_xyz789",
-      "status": "failed",
-      "error": "Machine went offline during processing"
-    }
-
-## Polling Pattern (Check Every Few Seconds)
-
-Your code should check the job status repeatedly until it completes. Here's the general idea:
-
-1. Send your chat or embed request → get a job ID
-2. Wait 2 seconds
-3. Check the job status
-4. If it's "completed" or "failed" — you're done
-5. If it's still "queued" or "running" — wait 2 seconds and check again
+    curl -X GET https://igtp.vercel.app/api/jobs/job-1234567890 \\
+      -H "Authorization: Bearer igtp_xxxx_xxxx_xxxx_xxxx"
 
 ## Job Status Values
 
 | Status | Meaning |
 |---|---|
 | queued | Waiting to be picked up by the daemon |
-| running | Currently being processed |
+| running | Currently being processed by Ollama |
 | completed | Done, result is available |
-| failed | Something went wrong |`,
+| failed | Something went wrong |
+| timed_out | Exceeded the maximum runtime |
+
+## Polling Pattern
+
+Your code should check the job status repeatedly until it completes:
+
+1. Send your chat or embed request → get a job ID
+2. Wait 2 seconds
+3. Check the job status
+4. If it's "completed" or "failed" — you're done
+5. If it's still "queued" or "running" — wait 2 seconds and check again`,
   },
   {
     id: 'how-trust-network-works',
@@ -1271,17 +1081,9 @@ Think of it like a neighborhood where everyone knows each other, rather than a c
 
 Being in someone's network doesn't automatically give you access to their machines. The machine owner still needs to approve each request individually.
 
-## How It Gets Built
-
-1. You start with just yourself — an empty network
-2. Someone who's already on IGTP invites you to join (that's how you got here)
-3. You automatically become connected to the person who invited you
-4. You can then send friend requests to other IGTP users you know
-5. As you accept friend requests and send your own, your network grows
-
 ## Mutual Trust
 
-Connections are **two-way** — both people need to agree. If Alice sends a friend request to Bob, Bob needs to accept before they're connected. This ensures neither party is surprised.
+Connections can be **one-way or mutual**. When Alice adds Bob to her network, Alice trusts Bob. If Bob also adds Alice, it becomes mutual trust. The Network page shows which connections are mutual and which are one-way.
 
 ## Your Network is Private
 
@@ -1297,34 +1099,24 @@ Your network list is not public. Nobody outside IGTP can see who is in your trus
 
 Click **"Network"** in the top navigation bar.
 
-## Step 2: Find the "Add Connection" Section
+## Step 2: Find the Person
 
-On the Network page, look for a section called **"Add to Network"** or **"Find People"**. It has a search field.
+Scroll down to the **"People on IGTP"** section. You'll see a list of users who aren't yet in your network.
 
-## Step 3: Search for the Person
+## Step 3: Send the Request
 
-Type their name or email address in the search box. Results will show people on IGTP who match your search and who are not yet in your network.
-
-> **Privacy note:** You can only find people who have their account set to "discoverable." If your friend isn't showing up, they may need to enable discoverability in their Settings.
-
-## Step 4: Send the Request
-
-1. Find the person in the search results
-2. Click the **"Add to Network"** or **"Send Friend Request"** button next to their name
-3. Optionally add a short message: "Hey, it's [your name] from [how you know them]!"
-4. Click **"Send"**
-
-The person will receive a notification that you've sent them a friend request.
+Click the **"Add to Network"** button next to the person's name. The button will change to show **"Pending"** while you wait for them to accept.
 
 ## What Happens Next?
 
+- The person will receive a notification that you've sent them a friend request
 - Your request shows as **"Pending"** until they respond
-- If they accept, you'll receive a notification and they'll appear in your network
-- If they decline or ignore it, nothing changes
+- If they accept, they'll appear in your network and you can see each other's machines
+- If they deny it, nothing changes — you won't be notified
 
 ## Inviting Someone Not Yet on IGTP
 
-If the person you want to connect with isn't on IGTP yet, you can **invite them by email**. See "How to invite someone who isn't on IGTP yet." `,
+If the person you want to connect with isn't on IGTP yet, scroll to the **"Invite Someone New"** section at the bottom of the Network page. Enter their email address to send them an invite.`,
   },
   {
     id: 'how-to-accept-friend-requests',
@@ -1338,41 +1130,28 @@ When someone sends you a friend request, you have full control over whether to a
 
 You'll know you have a pending friend request when:
 1. You see a **red number badge** on the bell icon in the navigation bar
-2. You check the **Notifications** page and see "Someone sent you a friend request"
+2. You check the **Notifications** page
 
 ## How to Respond
 
-### Option 1: From Notifications
-
-1. Click the **bell icon** in the navigation bar
-2. Find the friend request notification
-3. Click **"View Request"**
-
-### Option 2: From the Network Page
-
-1. Click **"Network"** in the navigation bar
-2. Look for the **"Friend Requests"** or **"Incoming Requests"** section
-3. You'll see cards showing each pending request with the person's name
+Go to the **Network** page by clicking "Network" in the navigation bar. If you have incoming friend requests, you'll see a **"Pending Friend Requests"** section showing each request.
 
 ### Accepting
 
-1. Click the **green "Accept"** button on the request card
+1. Click the **green "Accept"** button on the request
 2. That person is now added to your trust network
 3. They'll receive a notification that you accepted
 4. You can now see each other's shared machines in Browse
 
-### Declining
+### Denying
 
-1. Click the **red "Decline"** or **"Ignore"** button
+1. Click the **red "Deny"** button
 2. The request is removed
-3. The other person won't receive a notification that you declined (to avoid awkwardness)
-4. They won't be able to see your machines
+3. They won't be in your network
 
 ## What if I Don't Recognize the Person?
 
-If you receive a request from someone you don't know, it's perfectly fine to decline. Only connect with people you actually trust — that's the whole point of the trust network.
-
-If it seems like spam or misuse, you can also report it by clicking the **three-dot menu** on the request card and selecting **"Report."** `,
+If you receive a request from someone you don't know, it's perfectly fine to deny it. Only connect with people you actually trust — that's the whole point of the trust network.`,
   },
   {
     id: 'how-to-remove-from-network',
@@ -1380,7 +1159,7 @@ If it seems like spam or misuse, you can also report it by clicking the **three-
     title: 'How to remove someone from your network',
     content: `# How to remove someone from your network
 
-If you want to disconnect from someone in your trust network, here's how to do it.
+If you want to disconnect from someone in your trust network, here's how.
 
 ## Step 1: Go to Network
 
@@ -1388,45 +1167,23 @@ Click **"Network"** in the top navigation bar.
 
 ## Step 2: Find the Person
 
-In your connections list, find the person you want to remove.
+In the friend cards section, find the person you want to remove.
 
 ## Step 3: Remove the Connection
 
-1. Click on their name or the **three-dot menu** next to their name
-2. Select **"Remove from Network"** or **"Disconnect"**
-3. Confirm when prompted — a dialog will ask "Are you sure?"
-4. Click the **"Remove"** button to confirm
+Click the **"Remove"** link next to their name. A confirmation dialog will appear asking "Remove this person from your trust network?" Click OK to confirm.
 
 ## What Happens When You Remove Someone
 
 When you remove someone from your network:
 
 - They can no longer see your machines in Browse
-- Any pending access requests between you are cancelled
-- Any active machine access they had is **immediately revoked**
-- You no longer appear in each other's network lists
-- They can no longer send you friend requests (unless you re-add them)
-
-**Ongoing conversations** they started before being removed may be interrupted.
-
-## Will They Be Notified?
-
-They won't receive an explicit "You've been removed" notification. However, they'll notice that your machines no longer appear in their Browse page.
+- You can no longer see their machines
+- You no longer appear in each other's network
 
 ## Can They Add Me Back?
 
-Not directly — you would need to send them a new friend request if you want to reconnect. The connection is fully broken.
-
-## Removing Access Without Removing From Network
-
-If you just want to **revoke machine access** without completely disconnecting from someone, you can do that separately:
-
-1. Go to **My Machines**
-2. Click on the machine
-3. Find the person in the access list
-4. Click **"Revoke Access"** next to their name
-
-This removes their machine access while keeping them in your network.`,
+Yes — they would need to send you a new friend request, and you would need to accept it.`,
   },
   {
     id: 'how-to-invite-someone',
@@ -1436,44 +1193,32 @@ This removes their machine access while keeping them in your network.`,
 
 IGTP is invitation-only. If you want to bring a friend onto the platform, you can invite them by email.
 
-## Step 1: Go to Settings → Invites
+## Option 1: From the Network Page
+
+1. Go to the **Network** page
+2. Scroll to the **"Invite Someone New"** section at the bottom
+3. Enter your friend's email address
+4. Click **"Send Invite"**
+
+## Option 2: From Settings
 
 1. Click **"Settings"** in the navigation bar
-2. Look for **"Invites"** or **"Invite a Friend"** section
+2. Click **"Invites"** on the Settings page
+3. Enter the email address and send
 
-Or go directly to: **Settings → Invites**
+## What Happens Next
 
-## Step 2: Enter Their Email
-
-1. Type your friend's email address in the **"Email"** field
-2. Optionally add a personal message — something like "Hey, I've been using this cool AI sharing platform, join me!"
-3. Click the **"Send Invite"** button
-
-## Step 3: Your Friend Gets an Email
-
-Your friend will receive an email from IGTP with a link to create their account. The email will show that the invite came from you.
-
-> **The invite link expires in 7 days.** If your friend doesn't sign up in time, you can send them a new invite.
+Your friend will receive an email with a link to create their IGTP account. The invite link expires after 7 days.
 
 ## After They Sign Up
 
-Once your friend creates their account through your invite:
-- You'll receive a notification that they joined
-- You'll **automatically** be connected in each other's trust network (no separate friend request needed!)
-- They'll appear in your Network page
-
-## How Many Invites Do I Have?
-
-You can see how many invites you have remaining on the Invites page. The number may be limited to prevent spam. If you've run out, contact the IGTP team.
+Once your friend creates their account through your invite, you'll automatically be connected in each other's trust network — no separate friend request needed!
 
 ## Tracking Your Invites
 
-On the Invites page, you can see:
+On the **Settings → Invites** page, you can see:
 - **Pending invites** — Sent but not yet accepted
-- **Accepted invites** — Friends who have joined
-- **Expired invites** — Links that expired before the person signed up
-
-You can resend an invite to an expired invitation by clicking **"Resend"** next to it.`,
+- **Accepted invites** — Friends who have joined`,
   },
   {
     id: 'managing-api-keys',
@@ -1481,7 +1226,7 @@ You can resend an invite to an expired invitation by clicking **"Resend"** next 
     title: 'Managing your API keys',
     content: `# Managing your API keys
 
-API keys allow your programs and scripts to access IGTP without using your password. Here's how to manage them.
+API keys allow your programs and the IGTP daemon to authenticate with IGTP. Here's how to manage them.
 
 ## Getting to API Keys
 
@@ -1490,40 +1235,35 @@ API keys allow your programs and scripts to access IGTP without using your passw
 
 ## Creating a New Key
 
-1. Click **"Generate New Key"**
-2. Enter a **name** that describes what the key is for (e.g., "Python chatbot", "Personal scripts")
-3. Click **"Create"**
-4. **Copy the key immediately** — it won't be shown again in full
+1. Enter a **label** that describes what the key is for (e.g., "My daemon", "Python script")
+2. Click **"Generate API Key"**
+3. **Copy the key immediately** — it won't be shown again in full
 
-The key starts with **igtp_sk_** followed by a long string of characters.
+The key looks like **igtp_xxxx_xxxx_xxxx_xxxx** (four groups separated by underscores).
 
 ## Viewing Your Keys
 
-On the API Keys page, you'll see a table showing:
-- **Name** — What you called the key
-- **Preview** — The first and last few characters
+On the API Keys page, you'll see a list showing:
+- **Prefix** — The first part of the key (for identification)
+- **Label** — What you named the key
+- **Last used** — When the key was last used
 - **Created** — When you created it
-- **Last used** — When the key was last used to make an API call
-
-The full key value is hidden after creation to keep it secure.
 
 ## Deleting a Key
 
 If a key is no longer needed or you think it may have been compromised:
 
 1. Find the key in the list
-2. Click the **"Delete"** or trash icon button next to it
-3. Confirm the deletion
+2. Click the **delete button** next to it
 
-> **Important:** Deleting a key immediately invalidates it. Any programs using that key will stop working. Make sure to update those programs with a new key first.
+> **Important:** Deleting a key immediately invalidates it. Any programs or daemons using that key will stop working. Make sure to update them with a new key first.
 
 ## Best Practices
 
-- Create one key per project or use-case
+- Create one key per use-case (one for your daemon, one for scripts, etc.)
 - Name keys clearly so you remember what uses them
 - Delete keys you no longer use
-- If you accidentally expose a key (e.g., commit it to GitHub), delete it and create a new one immediately
-- Store keys in environment variables in your code, never in the code itself`,
+- If you accidentally expose a key, delete it and create a new one immediately`,
   },
   {
     id: 'viewing-job-history',
@@ -1531,7 +1271,7 @@ If a key is no longer needed or you think it may have been compromised:
     title: 'Viewing your job history',
     content: `# Viewing your job history
 
-**Jobs** are the records of AI requests — each time you (or your API key) sends a chat or embedding request, it creates a job record.
+**Jobs** are the records of AI requests — each time you send a chat message or make an API call, it creates a job record.
 
 ## Getting to Job History
 
@@ -1540,24 +1280,13 @@ If a key is no longer needed or you think it may have been compromised:
 
 ## What You'll See
 
-The Jobs page shows a table with all your past jobs, ordered by most recent:
+The Jobs page shows a list of all your past jobs with details including:
 
-| Column | What it shows |
-|---|---|
-| **Type** | Chat or Embedding |
-| **Model** | Which AI model was used |
-| **Machine** | Which machine processed the job |
-| **Status** | Completed, Failed, Running, or Queued |
-| **Tokens** | How many tokens were used |
-| **Created** | When the job was created |
-| **Duration** | How long it took to complete |
-
-## Filtering Jobs
-
-You can filter the list by:
-- **Status** — Show only failed jobs, or only completed ones
-- **Date range** — See jobs from a specific time period
-- **Machine** — Filter by which machine processed the jobs
+- **Job type** — Chat or Embedding
+- **Model** — Which AI model was used
+- **Status** — Completed, Failed, Running, Queued, or Timed Out
+- **Token usage** — Prompt tokens, completion tokens, and total
+- **When it was created**
 
 ## Why Look at Job History?
 
@@ -1565,15 +1294,7 @@ The job history is useful for:
 
 - **Debugging API issues** — If your program isn't getting results, check whether the job was created and what status it has
 - **Usage tracking** — Understand how many tokens you're consuming
-- **Troubleshooting** — Find failed jobs and see what error occurred
-
-## Understanding Failed Jobs
-
-If a job shows **"Failed"**, click on it to see the error details. Common reasons for failure:
-- The machine went offline mid-processing
-- The model ran out of memory
-- The request timed out
-- Invalid request format (for API users)`,
+- **Troubleshooting** — Find failed jobs and see what went wrong`,
   },
   {
     id: 'viewing-access-requests',
@@ -1581,29 +1302,21 @@ If a job shows **"Failed"**, click on it to see the error details. Common reason
     title: 'Viewing your access requests',
     content: `# Viewing your access requests
 
-You can view all access requests — both ones you've sent to others and ones you need to respond to.
+You can view all access requests you've sent to use other people's machines.
 
-## Your Outgoing Requests
-
-To see access requests you've sent:
+## Getting There
 
 1. Click **"Settings"** in the navigation bar
-2. Click **"My Requests"** (or go directly to the **Requests** page)
+2. Click **"My Requests"**
 
-You'll see a list of all access requests you've sent, showing:
+## What You'll See
+
+A list of all access requests you've sent, showing:
 - **Machine name** — Which machine you requested access to
 - **Machine owner** — Who owns the machine
 - **Status:** Pending, Approved, or Denied
 - **Date** — When you sent the request
-
-## Incoming Requests (Requests for Your Machines)
-
-To see who has requested access to **your machines**:
-
-1. Click **"Network"** in the navigation bar
-2. Look for the **"Access Requests"** section
-
-Or, check your **Notifications** — incoming access requests trigger a notification.
+- **Owner's note** — Any message the owner included when responding
 
 ## Request Statuses Explained
 
@@ -1612,7 +1325,6 @@ Or, check your **Notifications** — incoming access requests trigger a notifica
 | **Pending** | You sent the request, waiting for approval |
 | **Approved** | Access granted — you can use this machine |
 | **Denied** | The owner declined your request |
-| **Revoked** | Access was removed after being approved |
 
 ## What if My Request Has Been Pending for a Long Time?
 
@@ -1620,15 +1332,7 @@ There's no automatic reminder system. If your request has been pending for a whi
 
 1. Check your trust network — make sure you're still connected to the machine owner
 2. Try reaching out to the owner directly through another channel
-3. Some owners may not check the app frequently
-
-## Cancelling a Pending Request
-
-If you no longer want access to a machine, you can cancel your pending request:
-
-1. Go to the **Requests** page
-2. Find the pending request
-3. Click **"Cancel Request"** `,
+3. Some owners may not check the app frequently`,
   },
   {
     id: 'daemon-wont-start',
@@ -1636,7 +1340,7 @@ If you no longer want access to a machine, you can cancel your pending request:
     title: "The daemon won\\'t start",
     content: `# The daemon won't start
 
-If you run **igtp start** and the daemon doesn't come online, here's how to diagnose and fix it.
+If you run **~/.igtp/igtp start** and the daemon doesn't come online, here's how to diagnose and fix it.
 
 ## Step 1: Check if Ollama is Running
 
@@ -1654,107 +1358,27 @@ If it's not running, start it:
 
     sudo systemctl start ollama
 
-## Step 2: Check the Error Message
+## Step 2: Check the Logs
 
-Run the daemon manually to see error output:
+    ~/.igtp/igtp logs
 
-    igtp start
-
-Read the error message carefully. Common errors and what they mean:
-
-| Error | Cause | Fix |
-|---|---|---|
-| Cannot connect to Ollama | Ollama isn't running | Start Ollama first |
-| Invalid token | Your daemon token is wrong | Re-run the installer with the correct token |
-| Machine not found | Machine was deleted from IGTP | Re-register via installer |
-| Connection refused | Network/firewall blocking | See Step 3 |
-| Port in use | Another process using the port | Restart your computer |
+Look for error messages about connections or authentication.
 
 ## Step 3: Check Your Internet Connection
 
 The daemon needs internet to connect to IGTP's servers. Make sure you can access other websites. If you're on a corporate or school network, a firewall may be blocking the connection.
 
-## Step 4: Check the Logs
+## Step 4: Verify Your API Key
 
-    igtp logs --tail 50
-
-The logs may show more detailed error information.
+If the logs show authentication errors, your API key may be invalid. Generate a new one at Settings → API Keys, then update the daemon config at **~/.igtp/daemon/.env**.
 
 ## Step 5: Reinstall the Daemon
 
 If nothing else works, try a clean reinstall:
 
-    igtp uninstall
+    ~/.igtp/igtp uninstall
 
 Then follow the installation instructions again (see "How to install the IGTP daemon").`,
-  },
-  {
-    id: 'igtp-command-not-found',
-    category: 'Troubleshooting',
-    title: '"igtp" command not found',
-    content: `# "igtp" command not found
-
-If you open Terminal or PowerShell and type **igtp** but see an error like "command not found" or "is not recognized," here's what to do.
-
-## What This Means
-
-The **igtp** command isn't in your system's search path, which means either:
-1. The daemon was never installed, or
-2. The installation didn't complete correctly, or
-3. Your terminal doesn't know where to find the command
-
-## Mac or Linux Fix
-
-### Check if it's installed
-
-Open a Terminal and run:
-
-    which igtp
-
-If this returns nothing, the daemon isn't installed. Skip to Reinstall below.
-
-### Fix the Path
-
-If it IS installed but not found, you may need to update your PATH. Run these two commands:
-
-    echo 'export PATH="$PATH:/usr/local/bin"' >> ~/.zshrc
-    source ~/.zshrc
-
-Then try **igtp status** again.
-
-### Reinstall
-
-    curl -fsSL https://igtp.vercel.app/install.sh | sh
-
-Follow the prompts. The installer will add **igtp** to your PATH automatically.
-
----
-
-## Windows Fix
-
-### Open a New PowerShell Window
-
-Sometimes the PATH update from installation doesn't take effect in your current window. Close PowerShell and open a new one, then try again.
-
-### Check if It's Installed
-
-In PowerShell, run:
-
-    Get-Command igtp -ErrorAction SilentlyContinue
-
-If nothing appears, reinstall.
-
-### Reinstall
-
-Open PowerShell **as Administrator** (right-click → Run as administrator) and run:
-
-    irm https://igtp.vercel.app/install.ps1 | iex
-
----
-
-## Still Not Working?
-
-Try restarting your computer after installation. This ensures all PATH changes take effect across all applications.`,
   },
   {
     id: 'machine-shows-offline',
@@ -1762,58 +1386,44 @@ Try restarting your computer after installation. This ensures all PATH changes t
     title: 'My machine shows as offline',
     content: `# My machine shows as offline
 
-Your machine shows as **"Offline"** in IGTP even though you think the daemon is running. Here's how to fix it.
+Your machine shows as offline in IGTP even though you think the daemon is running. Here's how to fix it.
 
 ## Step 1: Confirm the Daemon is Actually Running
 
 Open a Terminal or PowerShell and run:
 
-    igtp status
+    ~/.igtp/igtp status
 
-- If it says **"Running"**, the daemon is running but not connecting (see Step 3)
-- If it says **"Stopped"** or shows an error, start it with:
-
-    igtp start
+- If it shows the daemon is running, continue to Step 2
+- If it's stopped, start it with: **~/.igtp/igtp start**
 
 ## Step 2: Wait a Moment
 
-After starting the daemon, it can take **10–30 seconds** for IGTP to update your machine's status. Refresh the page in your browser and check again.
+After starting the daemon, it can take a few seconds for IGTP to update your machine's status. The daemon sends heartbeats every 60 seconds. Refresh the page in your browser and check again.
 
 ## Step 3: Check Your Internet Connection
 
 The daemon connects to IGTP's servers over the internet. Make sure:
 - You can browse other websites normally
 - You're not on a VPN that might block the connection
-- Your Wi-Fi or ethernet is working
 
 ## Step 4: Check Ollama
 
-The daemon reports as offline if Ollama isn't running (because there's nothing to serve).
+The daemon needs Ollama to be running.
 
 **Mac:** Check for the llama icon in your menu bar.
 **Windows:** Check for the llama icon in your system tray.
 
-If Ollama isn't running, start it, then restart the daemon:
+If Ollama isn't running, start it, then stop and restart the daemon:
 
-    igtp restart
+    ~/.igtp/igtp stop
+    ~/.igtp/igtp start
 
-## Step 5: Check Firewall Settings
+## Step 5: Check the Logs
 
-Some firewalls block outbound connections from unknown programs.
+    ~/.igtp/igtp logs
 
-**Mac:** Go to System Settings → Network → Firewall → Firewall Options. Make sure **igtp** is allowed.
-
-**Windows:** Go to Settings → Windows Security → Firewall → Allow an app through firewall. Add igtp if needed.
-
-## Step 6: Check the Logs
-
-    igtp logs --tail 30
-
-Look for error messages about connections or authentication.
-
-## Step 7: Re-register the Machine
-
-If the machine was deleted from IGTP and re-added, the daemon may have an outdated registration. Reinstall the daemon with a fresh token from Settings.`,
+Look for error messages about connections or authentication.`,
   },
   {
     id: 'cant-see-any-models',
@@ -1821,7 +1431,7 @@ If the machine was deleted from IGTP and re-added, the daemon may have an outdat
     title: "I can\\'t see any models",
     content: `# I can't see any models
 
-If you go to Browse or try to start a new conversation and see no models available, here's what might be happening.
+If you try to start a new conversation and see no models available, here's what might be happening.
 
 ## If You're the Machine Owner
 
@@ -1837,17 +1447,13 @@ You should see a table of installed models. If it's empty, you need to download 
 
 Wait for the download to complete (it may be several gigabytes).
 
-### Restart the Daemon After Adding Models
+### Wait for the Daemon to Sync
 
-After installing new models, the daemon needs to sync. Run:
-
-    igtp restart
-
-Wait 30 seconds, then check your machine in IGTP — the models should now appear.
+The daemon automatically syncs models with IGTP every 60 seconds. After installing new models, wait a minute and then refresh the page — the models should appear.
 
 ### Check the Daemon Status
 
-    igtp status
+    ~/.igtp/igtp status
 
 The daemon needs to be running for models to show up in IGTP.
 
@@ -1860,16 +1466,16 @@ The daemon needs to be running for models to show up in IGTP.
 Make sure you actually have **approved access** to the machine:
 
 1. Go to **Browse**
-2. Does the machine show "Approved" or just "Request Access"?
-3. If it shows "Request Access," you haven't been approved yet
+2. Does the machine show that you have access?
+3. If not, you need to request access first
 
 ### Check the Machine Status
 
-If the machine shows **"Offline"**, the owner's daemon isn't running. You won't be able to see or use models until they bring it back online.
+If the machine shows as **offline** (gray dot), the owner's daemon isn't running. You won't be able to use models until they bring it back online.
 
 ### Ask the Owner
 
-If the machine is online and you have approved access but still see no models, contact the machine owner. They may have removed all their models or Ollama may not be running correctly on their end.`,
+If the machine is online and you have approved access but still see no models, contact the machine owner. They may need to install models in Ollama or restart their daemon.`,
   },
   {
     id: 'job-stuck-on-queued',
@@ -1887,9 +1493,9 @@ When a job is **queued**, it means IGTP has received your request but the machin
 
 ### 1. The Machine Went Offline
 
-The most common cause. The machine you're trying to use went offline between when you requested access and now.
+The most common cause. The machine you're trying to use went offline.
 
-**Check:** Go to Browse. Is the machine still showing as "Online"? If it's offline, the job will stay queued until the machine comes back online.
+**Check:** Go to Browse. Is the machine still showing as online (green dot)? If it's offline, the job will stay queued until the machine comes back online.
 
 **What to do:**
 - Wait for the machine to come back online, OR
@@ -1899,27 +1505,23 @@ The most common cause. The machine you're trying to use went offline between whe
 
 If the machine is processing many jobs simultaneously, yours may be waiting in line.
 
-**Check:** Look at the machine's active jobs count on Browse.
-
-**What to do:** Wait a few minutes. Jobs are processed in order.
-
 ### 3. Network Issues on the Machine's Side
 
 The daemon may be running but having trouble communicating with IGTP's servers.
 
 **If you own the machine:**
 
-1. Run: **igtp logs --tail 20**
+1. Run: **~/.igtp/igtp logs**
 2. Look for connection errors
-3. Try: **igtp restart**
+3. Try stopping and restarting: **~/.igtp/igtp stop** then **~/.igtp/igtp start**
 
 ### 4. Ollama Crashed on the Machine
 
-Ollama may have crashed on the host machine. The daemon might be running but Ollama isn't responding.
+Ollama may have crashed on the host machine.
 
 **If you own the machine:**
 - Restart Ollama (reopen the app on Mac/Windows, or run **sudo systemctl restart ollama** on Linux)
-- Then restart the daemon: **igtp restart**
+- Then restart the daemon
 
 ## If the Job Never Completes
 
@@ -1927,109 +1529,6 @@ After waiting more than 5 minutes:
 1. Consider the job as failed
 2. Start a new conversation
 3. Check Settings → Jobs to see the status of the old job`,
-  },
-  {
-    id: 'not-getting-notifications',
-    category: 'Troubleshooting',
-    title: "I\\'m not getting notifications",
-    content: `# I'm not getting notifications
-
-Notifications in IGTP appear as a red badge on the bell icon in the navigation bar. If you're missing notifications, here's what to check.
-
-## Checking Your Notifications Manually
-
-Even if the bell badge isn't showing, you can always check manually:
-
-1. Click the **bell icon** in the navigation bar
-2. Or go directly to the **Notifications** page
-
-If there are unread notifications, they'll appear here.
-
-## Why the Badge Might Not Update
-
-The notification count updates in near-real-time using a background connection. This connection can occasionally drop.
-
-**Fix:** Simply **refresh the page** (press F5 or Command+R on Mac). The badge count will update on reload.
-
-## Missing an Expected Notification
-
-If someone said they approved your request or sent you a friend request but you're not seeing it:
-
-1. **Refresh the page** — This is the most common fix
-2. **Log out and back in** — Go to Settings → Sign out, then log back in
-3. **Check if you're in the right account** — Are you logged into the account you think you are? (Your name appears in the top-right corner of the navbar)
-
-## Email Notifications
-
-IGTP currently sends email notifications for:
-- Accepted friend requests
-- Approved machine access requests
-
-If you're not receiving emails:
-1. Check your spam or junk folder
-2. Search for emails from the IGTP domain
-3. Make sure the email address on your account is correct (check Settings)
-
-## Real-Time Updates
-
-IGTP uses a technology called **Server-Sent Events** to push real-time notification updates to your browser. If your network blocks long-lived connections (some corporate or school networks do), real-time updates may not work.
-
-In that case, refreshing the page manually will always show the current count.`,
-  },
-  {
-    id: 'how-to-reinstall-daemon',
-    category: 'Troubleshooting',
-    title: 'How to reinstall the daemon',
-    content: `# How to reinstall the daemon
-
-If the daemon is misbehaving and you want a completely fresh start, here's how to reinstall it.
-
-## Step 1: Uninstall the Current Daemon
-
-Open a Terminal (Mac/Linux) or PowerShell (Windows) and run:
-
-    igtp uninstall
-
-> **Note:** On Windows, run PowerShell as Administrator for this command.
-
-This will:
-- Stop the daemon if it's running
-- Remove the daemon service and auto-start
-- Remove the **igtp** command
-- **Keep** your machine registration in IGTP (your machine won't disappear from the website)
-
-## Step 2: Get a Fresh Daemon Token
-
-If you want to register as the same machine:
-1. Log into IGTP in your browser
-2. Go to **My Machines**
-3. Click on your machine name
-4. Look for **"Daemon Token"** or **"Regenerate Token"**
-5. Copy the new token
-
-If you want to register as a brand new machine, just go through the normal setup flow.
-
-## Step 3: Run the Installer Again
-
-**Mac or Linux:**
-
-    curl -fsSL https://igtp.vercel.app/install.sh | sh
-
-**Windows (PowerShell as Administrator):**
-
-    irm https://igtp.vercel.app/install.ps1 | iex
-
-## Step 4: Enter Your Token and Machine Name
-
-Follow the prompts:
-1. Paste your daemon token when asked
-2. Enter your machine name (keep the same name if it's the same machine)
-
-## Step 5: Verify
-
-    igtp status
-
-You should see "Running" with a green status. Check your machine in the IGTP website — it should show as Online within 30 seconds.`,
   },
   {
     id: 'how-to-uninstall-everything',
@@ -2041,27 +1540,15 @@ If you want to completely remove IGTP from your computer, here's how to do it cl
 
 ## Step 1: Uninstall the IGTP Daemon
 
-Open a Terminal (Mac/Linux) or PowerShell as Administrator (Windows) and run:
+Open a Terminal (Mac/Linux) or PowerShell (Windows) and run:
 
-    igtp uninstall
+    ~/.igtp/igtp uninstall
 
-This removes:
-- The IGTP daemon service
-- The **igtp** command-line tool
-- The auto-start configuration
-- Any local daemon configuration files
+This removes the IGTP daemon, the CLI tool, and the auto-start configuration.
 
 ## Step 2: Remove Your Machine From IGTP (Optional)
 
-If you want your machine to no longer appear in IGTP at all:
-
-1. Log into IGTP in your browser
-2. Go to **My Machines**
-3. Find your machine in the list
-4. Click the **three-dot menu** → **"Delete Machine"**
-5. Confirm the deletion
-
-This removes the machine from everyone's Browse page and revokes any access that was granted to it.
+If you want your machine to no longer appear in IGTP at all, you can delete it from the My Machines page in the website.
 
 ## Step 3: Uninstall Ollama (Optional)
 
@@ -2079,16 +1566,6 @@ IGTP doesn't manage Ollama, but if you also want to remove Ollama:
     sudo systemctl disable ollama
     sudo rm /usr/local/bin/ollama
     rm -rf ~/.ollama
-
-## Step 4: Delete Your IGTP Account (Optional)
-
-If you want to completely delete your account and all data:
-
-1. Go to **Settings**
-2. Look for **"Account"** or **"Delete Account"** at the bottom
-3. Follow the prompts to confirm account deletion
-
-> **Warning:** Account deletion is permanent and cannot be undone. All your conversations, connections, machines, and API keys will be deleted.
 
 ## Done!
 
