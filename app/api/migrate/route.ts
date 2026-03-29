@@ -22,11 +22,17 @@ export async function POST(request: Request) {
   const schemaPath = path.join(process.cwd(), "lib", "schema.sql");
   const schema = readFileSync(schemaPath, "utf-8");
 
-  // Split on semicolons to run each statement separately
+  // Split on semicolons, strip comment-only lines, run each statement
   const statements = schema
     .split(";")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !s.startsWith("--"));
+    .map((s) =>
+      s
+        .split("\n")
+        .filter((line) => !line.trimStart().startsWith("--"))
+        .join("\n")
+        .trim()
+    )
+    .filter((s) => s.length > 0);
 
   const results: string[] = [];
   for (const stmt of statements) {
