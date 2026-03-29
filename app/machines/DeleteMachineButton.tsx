@@ -26,7 +26,7 @@ export function DeleteMachineButton({ machineId }: { machineId: string }) {
     <button
       onClick={handleDelete}
       disabled={deleting}
-      className="text-xs text-muted-foreground hover:text-red-400 transition-colors disabled:opacity-50"
+      className="w-full text-xs px-3 py-1.5 border border-border rounded-lg hover:border-red-500/50 text-red-400 hover:text-red-300 cursor-pointer transition-colors disabled:opacity-50"
     >
       {deleting ? "Deleting..." : "Delete"}
     </button>
