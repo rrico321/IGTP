@@ -1,13 +1,63 @@
 "use client";
 
 import Link from 'next/link'
+import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import type { Notification } from '@/lib/types'
-import { CheckCircle, XCircle, Clock } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, UserPlus } from 'lucide-react'
 
-const ICONS = {
+const ICONS: Record<string, React.ReactNode> = {
   request_approved: <CheckCircle className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />,
   request_denied: <XCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />,
   request_submitted: <Clock className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />,
+  friend_request: <UserPlus className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />,
+}
+
+function FriendRequestActions({ friendRequestId }: { friendRequestId: string }) {
+  const [result, setResult] = useState<'accepted' | 'denied' | null>(null)
+  const [isPending, startTransition] = useTransition()
+  const router = useRouter()
+
+  function handleAction(action: 'accept' | 'deny') {
+    startTransition(async () => {
+      const res = await fetch(`/api/friend-requests/${friendRequestId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      if (res.ok) {
+        setResult(action === 'accept' ? 'accepted' : 'denied')
+        router.refresh()
+      }
+    })
+  }
+
+  if (result) {
+    return (
+      <span className={`text-xs font-medium ${result === 'accepted' ? 'text-green-400' : 'text-muted-foreground'}`}>
+        {result === 'accepted' ? 'Accepted' : 'Denied'}
+      </span>
+    )
+  }
+
+  return (
+    <div className="flex gap-2 mt-2">
+      <button
+        onClick={() => handleAction('accept')}
+        disabled={isPending}
+        className="px-3 py-1 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-500 disabled:opacity-50 transition-colors cursor-pointer"
+      >
+        Approve
+      </button>
+      <button
+        onClick={() => handleAction('deny')}
+        disabled={isPending}
+        className="px-3 py-1 text-xs font-medium rounded-lg bg-card border border-border text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors cursor-pointer"
+      >
+        Deny
+      </button>
+    </div>
+  )
 }
 
 export function NotificationsClient({ notifications }: { notifications: Notification[] }) {
@@ -40,7 +90,18 @@ export function NotificationsClient({ notifications }: { notifications: Notifica
               </span>
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">{n.message}</p>
-            {n.requestId && (
+            {n.friendRequestId && (
+              <FriendRequestActions friendRequestId={n.friendRequestId} />
+            )}
+            {n.linkUrl && (
+              <Link
+                href={n.linkUrl}
+                className="text-xs text-foreground/60 underline underline-offset-4 hover:text-foreground mt-1 inline-block"
+              >
+                View request →
+              </Link>
+            )}
+            {!n.friendRequestId && !n.linkUrl && n.requestId && (
               <Link
                 href="/requests"
                 className="text-xs text-foreground/60 underline underline-offset-4 hover:text-foreground mt-1 inline-block"

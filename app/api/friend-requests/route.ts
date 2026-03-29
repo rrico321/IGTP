@@ -21,9 +21,10 @@ export async function POST(request: NextRequest) {
   const sender = await getUserById(userId);
   createNotification({
     userId: toUserId,
-    type: "request_submitted",
+    type: "friend_request",
     title: "Friend request",
     message: `${sender?.name ?? "Someone"} wants to add you to their trust network.`,
+    friendRequestId: friendReq.id,
   }).catch(() => {});
 
   return Response.json(friendReq, { status: 201 });

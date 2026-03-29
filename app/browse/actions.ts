@@ -43,6 +43,7 @@ export async function createRequestAction(
     title: `New request — ${machine.name}`,
     message: `${requester?.name ?? "Someone"} wants to use ${machine.name} for ${estimatedHours}h: "${purpose}"`,
     requestId: accessRequest.id,
+    linkUrl: `/machines/${machineId}/requests`,
   }).catch(() => {})
 
   revalidatePath('/requests')

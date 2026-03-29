@@ -48,6 +48,7 @@ export async function POST(
     title: `New request — ${machine.name}`,
     message: `${requester?.name ?? "Someone"} wants to use ${machine.name} for ${estimatedHours}h: "${purpose}"`,
     requestId: accessRequest.id,
+    linkUrl: `/machines/${id}/requests`,
   }).catch(() => {});
 
   return Response.json(accessRequest, { status: 201 });

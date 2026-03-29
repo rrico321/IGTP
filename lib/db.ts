@@ -317,6 +317,8 @@ const NOTIF_COLS = `
   title,
   message,
   request_id  AS "requestId",
+  friend_request_id AS "friendRequestId",
+  link_url    AS "linkUrl",
   read,
   created_at  AS "createdAt"
 `;
@@ -347,14 +349,16 @@ export async function createNotification(data: {
   title: string;
   message: string;
   requestId?: string;
+  friendRequestId?: string;
+  linkUrl?: string;
 }): Promise<Notification> {
   const sql = getSql();
   const id = `notif-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   const now = new Date().toISOString();
   const rows = await sql`
-    INSERT INTO notifications (id, user_id, type, title, message, request_id, read, created_at)
+    INSERT INTO notifications (id, user_id, type, title, message, request_id, friend_request_id, link_url, read, created_at)
     VALUES (${id}, ${data.userId}, ${data.type}, ${data.title}, ${data.message},
-            ${data.requestId ?? null}, FALSE, ${now})
+            ${data.requestId ?? null}, ${data.friendRequestId ?? null}, ${data.linkUrl ?? null}, FALSE, ${now})
     RETURNING ${sql.unsafe(NOTIF_COLS)}
   `;
   return rows[0] as Notification;

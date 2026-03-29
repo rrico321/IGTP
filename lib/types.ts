@@ -16,10 +16,12 @@ export interface Machine {
 export interface Notification {
   id: string;
   userId: string;
-  type: "request_approved" | "request_denied" | "request_submitted";
+  type: "request_approved" | "request_denied" | "request_submitted" | "friend_request";
   title: string;
   message: string;
   requestId: string | null;
+  friendRequestId: string | null;
+  linkUrl: string | null;
   read: boolean;
   createdAt: string;
 }
