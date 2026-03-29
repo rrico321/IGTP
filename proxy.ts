@@ -3,7 +3,7 @@ import { SESSION_COOKIE } from '@/lib/auth'
 
 // Paths accessible without authentication
 const PUBLIC_PREFIXES = ['/login', '/invite/']
-const PUBLIC_EXACT = ['/']
+const PUBLIC_EXACT = ['/', '/install.sh', '/install.ps1']
 
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
