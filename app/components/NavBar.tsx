@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { href: '/jobs', label: 'Jobs' },
   { href: '/network', label: 'Network' },
   { href: '/settings/invites', label: 'Invite' },
+  { href: '/settings/api-keys', label: 'API Keys' },
 ]
 
 export async function NavBar() {
