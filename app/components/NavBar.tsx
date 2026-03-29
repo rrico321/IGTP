@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { href: '/conversations', label: 'Chat' },
   { href: '/network', label: 'Network' },
   { href: '/settings', label: 'Settings' },
+  { href: '/help', label: 'Help' },
 ]
 
 export async function NavBar() {
