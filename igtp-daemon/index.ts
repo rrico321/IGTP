@@ -55,6 +55,9 @@ interface GpuJob {
   id: string;
   machineId: string;
   command: string;
+  model: string | null;
+  prompt: string | null;
+  jobType: string;
   dockerImage: string;
   maxRuntimeSec: number;
   vramLimitGb: number | null;
@@ -87,8 +90,18 @@ async function reportSnapshot(jobId: string, metrics: {
   await apiPost(`/api/jobs/${jobId}/snapshot`, metrics);
 }
 
-async function reportCompletion(jobId: string, status: string, exitCode: number | null, logUrl: string | null, outputText: string | null) {
-  await apiPost(`/api/jobs/${jobId}/snapshot`, { status, exitCode, outputLogUrl: logUrl, outputLog: outputText });
+async function reportCompletion(
+  jobId: string,
+  status: string,
+  exitCode: number | null,
+  logUrl: string | null,
+  outputText: string | null,
+  tokens?: { promptTokens: number; completionTokens: number; totalTokens: number } | null
+) {
+  await apiPost(`/api/jobs/${jobId}/snapshot`, {
+    status, exitCode, outputLogUrl: logUrl, outputLog: outputText,
+    ...(tokens ?? {}),
+  });
 }
 
 // ─── Log upload ───────────────────────────────────────────────────────────────
@@ -161,6 +174,58 @@ async function syncModels(): Promise<void> {
     console.log(`[igtp-daemon] Synced ${models.length} models`);
   } catch (err) {
     console.error("[igtp-daemon] Model sync error:", err);
+  }
+}
+
+// ─── Ollama execution ────────────────────────────────────────────────────────
+
+async function executeOllamaJob(job: GpuJob): Promise<void> {
+  console.log(`[igtp-daemon] Ollama job ${job.id}: ${job.jobType} with ${job.model}`);
+
+  const isEmbedding = job.jobType === "embedding";
+  const endpoint = isEmbedding ? "/api/embed" : "/api/generate";
+  const body = isEmbedding
+    ? { model: job.model, input: job.prompt }
+    : { model: job.model, prompt: job.prompt, stream: false };
+
+  try {
+    const res = await fetch(`${OLLAMA_URL}${endpoint}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`[igtp-daemon] Ollama error for job ${job.id}: ${errText}`);
+      await reportCompletion(job.id, "failed", 1, null, `Ollama error: ${errText}`);
+      return;
+    }
+
+    const data = await res.json();
+
+    if (isEmbedding) {
+      const outputText = JSON.stringify(data.embeddings ?? data.embedding);
+      const tokens = {
+        promptTokens: data.prompt_eval_count ?? 0,
+        completionTokens: 0,
+        totalTokens: data.prompt_eval_count ?? 0,
+      };
+      await reportCompletion(job.id, "completed", 0, null, outputText, tokens);
+    } else {
+      const outputText = data.response ?? "";
+      const tokens = {
+        promptTokens: data.prompt_eval_count ?? 0,
+        completionTokens: data.eval_count ?? 0,
+        totalTokens: (data.prompt_eval_count ?? 0) + (data.eval_count ?? 0),
+      };
+      await reportCompletion(job.id, "completed", 0, null, outputText, tokens);
+    }
+
+    console.log(`[igtp-daemon] Ollama job ${job.id} completed`);
+  } catch (err) {
+    console.error(`[igtp-daemon] Ollama job ${job.id} failed:`, err);
+    await reportCompletion(job.id, "failed", 1, null, `Error: ${err}`).catch(() => {});
   }
 }
 
@@ -249,7 +314,11 @@ async function poll() {
     if (!job) return;
 
     busy = true;
-    await executeJob(job);
+    if (job.model) {
+      await executeOllamaJob(job);
+    } else {
+      await executeJob(job);
+    }
   } catch (err) {
     console.error("[igtp-daemon] Poll error:", err);
   } finally {
