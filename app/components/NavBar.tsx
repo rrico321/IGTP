@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { href: '/browse', label: 'Browse' },
   { href: '/machines', label: 'My Machines' },
   { href: '/requests', label: 'My Requests' },
+  { href: '/conversations', label: 'Chat' },
   { href: '/jobs', label: 'Jobs' },
   { href: '/network', label: 'Network' },
   { href: '/settings/invites', label: 'Invite' },
