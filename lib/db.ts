@@ -756,6 +756,15 @@ export async function getModelsForMachine(machineId: string): Promise<MachineMod
   return rows as MachineModel[];
 }
 
+export async function getAllMachineModels(): Promise<MachineModel[]> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(MODEL_COLS)} FROM machine_models
+    ORDER BY machine_id, model_name ASC
+  `;
+  return rows as MachineModel[];
+}
+
 export async function syncMachineModels(
   machineId: string,
   models: Array<{ name: string; type: string; sizeBytes: number }>
