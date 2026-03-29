@@ -167,6 +167,11 @@ elif [[ -f /proc/meminfo ]]; then
   fi
 fi
 
+# Apple Silicon uses unified memory — VRAM = RAM
+if [[ "$VRAM_GB" -eq 0 && "$RAM_GB" -gt 0 && "$GPU_MODEL" == *"Apple"* ]]; then
+  VRAM_GB=$RAM_GB
+fi
+
 echo -e "  GPU:  ${BOLD}$GPU_MODEL${NC} ($VRAM_GB GB)"
 echo -e "  CPU:  ${BOLD}$CPU_MODEL${NC}"
 echo -e "  RAM:  ${BOLD}${RAM_GB} GB${NC}"

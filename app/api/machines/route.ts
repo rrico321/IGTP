@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
   const { name, description, gpuModel, vramGb, cpuModel, ramGb } = body;
-  if (!name || !gpuModel || !vramGb || !cpuModel || !ramGb) {
+  if (!name || !gpuModel || vramGb == null || !cpuModel || ramGb == null) {
     return Response.json(
       { error: "Missing required fields: name, gpuModel, vramGb, cpuModel, ramGb" },
       { status: 400 }
