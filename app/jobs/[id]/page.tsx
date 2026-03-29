@@ -5,6 +5,32 @@ import { requireUserId } from '@/lib/auth'
 import { JobStatusBadge } from '@/app/components/StatusBadge'
 import { CancelJobButton } from './CancelJobButton'
 
+async function JobOutput({ url }: { url: string }) {
+  let content: string
+  try {
+    const res = await fetch(url, { next: { revalidate: 0 } })
+    content = res.ok ? await res.text() : 'Failed to load output.'
+  } catch {
+    content = 'Failed to load output.'
+  }
+
+  return (
+    <>
+      <pre className="bg-black/40 rounded-lg p-4 text-sm font-mono text-green-300 overflow-x-auto whitespace-pre-wrap break-all max-h-96 overflow-y-auto">
+        {content || '(empty output)'}
+      </pre>
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-block mt-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+      >
+        Download full log →
+      </a>
+    </>
+  )
+}
+
 export default async function JobDetailPage({
   params,
 }: {
@@ -125,20 +151,32 @@ export default async function JobDetailPage({
         </div>
       )}
 
-      {/* Log output */}
-      {job.outputLogUrl && (
-        <div className="bg-card border border-border rounded-xl p-4">
-          <h2 className="text-sm font-medium mb-2">Output log</h2>
-          <a
-            href={job.outputLogUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-blue-400 hover:text-blue-300 underline underline-offset-2"
-          >
-            Download log →
-          </a>
-        </div>
-      )}
+      {/* Sent to Machine */}
+      <div className="bg-card border border-border rounded-xl p-4 mb-6">
+        <h2 className="text-sm font-medium mb-2 text-blue-400">Sent to Machine</h2>
+        <pre className="bg-black/40 rounded-lg p-4 text-sm font-mono text-foreground overflow-x-auto whitespace-pre-wrap break-all">
+          <span className="text-muted-foreground select-none">$ </span>{job.command}
+        </pre>
+        {job.dockerImage && (
+          <div className="mt-2 text-xs text-muted-foreground">
+            Docker image: <span className="font-mono text-foreground/70">{job.dockerImage}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Received from Machine */}
+      <div className="bg-card border border-border rounded-xl p-4">
+        <h2 className="text-sm font-medium mb-2 text-green-400">Received from Machine</h2>
+        {job.outputLogUrl ? (
+          <JobOutput url={job.outputLogUrl} />
+        ) : job.status === 'queued' ? (
+          <p className="text-xs text-muted-foreground italic">Waiting for machine to pick up this job...</p>
+        ) : job.status === 'running' ? (
+          <p className="text-xs text-muted-foreground italic">Job is running — output will appear when complete.</p>
+        ) : (
+          <p className="text-xs text-muted-foreground italic">No output available.</p>
+        )}
+      </div>
     </div>
   )
 }
