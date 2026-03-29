@@ -111,21 +111,29 @@ echo ""
 echo -e "${BOLD}Step 2: Detecting your hardware...${NC}"
 echo ""
 
-# Detect GPU
+# Detect GPU — wrapped in subshell so failures don't exit the script
 GPU_MODEL="Unknown"
 VRAM_GB=0
 if command -v nvidia-smi &>/dev/null; then
-  GPU_MODEL=$(nvidia-smi --query-gpu=name --format=csv,noheader,nounits 2>/dev/null | head -1 | xargs)
-  VRAM_MB=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | head -1 | xargs)
-  VRAM_GB=$(( VRAM_MB / 1024 ))
-elif [[ "$OSTYPE" == "darwin"* ]]; then
-  # macOS: check for Apple Silicon GPU or discrete GPU
-  GPU_INFO=$(system_profiler SPDisplaysDataType 2>/dev/null | grep "Chipset Model" | head -1 | sed 's/.*: //')
-  if [[ -n "$GPU_INFO" ]]; then
-    GPU_MODEL="$GPU_INFO"
+  GPU_MODEL=$(nvidia-smi --query-gpu=name --format=csv,noheader,nounits 2>/dev/null | head -1 | xargs) || true
+  VRAM_MB=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | head -1 | xargs) || true
+  if [[ -n "${VRAM_MB:-}" && "$VRAM_MB" =~ ^[0-9]+$ ]]; then
+    VRAM_GB=$(( VRAM_MB / 1024 ))
   fi
-  VRAM_INFO=$(system_profiler SPDisplaysDataType 2>/dev/null | grep "VRAM\|Memory" | head -1 | sed 's/.*: //')
-  if [[ "$VRAM_INFO" =~ ([0-9]+) ]]; then
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+  # macOS: check for Apple Silicon or discrete GPU
+  GPU_INFO=$(system_profiler SPDisplaysDataType 2>/dev/null | grep "Chipset Model" | head -1 | sed 's/.*: //') || true
+  if [[ -n "${GPU_INFO:-}" ]]; then
+    GPU_MODEL="$GPU_INFO"
+  else
+    # Apple Silicon reports chip name instead
+    CHIP=$(sysctl -n machdep.cpu.brand_string 2>/dev/null) || true
+    if [[ -n "${CHIP:-}" ]]; then
+      GPU_MODEL="$CHIP (integrated)"
+    fi
+  fi
+  VRAM_INFO=$(system_profiler SPDisplaysDataType 2>/dev/null | grep -i "VRAM\|Memory\|memory" | head -1 | sed 's/.*: //') || true
+  if [[ "${VRAM_INFO:-}" =~ ([0-9]+) ]]; then
     VRAM_GB="${BASH_REMATCH[1]}"
   fi
 fi
@@ -133,19 +141,30 @@ fi
 # Detect CPU
 CPU_MODEL="Unknown"
 if [[ "$OSTYPE" == "darwin"* ]]; then
-  CPU_MODEL=$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo "Apple Silicon")
+  CPU_MODEL=$(sysctl -n machdep.cpu.brand_string 2>/dev/null) || true
+  if [[ -z "${CPU_MODEL:-}" || "$CPU_MODEL" == "Unknown" ]]; then
+    # Apple Silicon doesn't have machdep.cpu.brand_string
+    CPU_MODEL=$(uname -m 2>/dev/null) || true
+    if [[ "$CPU_MODEL" == "arm64" ]]; then
+      CPU_MODEL="Apple Silicon"
+    fi
+  fi
 elif [[ -f /proc/cpuinfo ]]; then
-  CPU_MODEL=$(grep "model name" /proc/cpuinfo | head -1 | sed 's/.*: //')
+  CPU_MODEL=$(grep "model name" /proc/cpuinfo | head -1 | sed 's/.*: //') || true
 fi
 
 # Detect RAM
 RAM_GB=0
 if [[ "$OSTYPE" == "darwin"* ]]; then
-  RAM_BYTES=$(sysctl -n hw.memsize 2>/dev/null)
-  RAM_GB=$(( RAM_BYTES / 1073741824 ))
+  RAM_BYTES=$(sysctl -n hw.memsize 2>/dev/null) || true
+  if [[ -n "${RAM_BYTES:-}" && "$RAM_BYTES" =~ ^[0-9]+$ ]]; then
+    RAM_GB=$(( RAM_BYTES / 1073741824 ))
+  fi
 elif [[ -f /proc/meminfo ]]; then
-  RAM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
-  RAM_GB=$(( RAM_KB / 1048576 ))
+  RAM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}') || true
+  if [[ -n "${RAM_KB:-}" && "$RAM_KB" =~ ^[0-9]+$ ]]; then
+    RAM_GB=$(( RAM_KB / 1048576 ))
+  fi
 fi
 
 echo -e "  GPU:  ${BOLD}$GPU_MODEL${NC} ($VRAM_GB GB)"
