@@ -113,8 +113,8 @@ export default async function NetworkPage() {
                   y1={from.y}
                   x2={to.x}
                   y2={to.y}
-                  stroke={mutual ? "hsl(var(--foreground) / 0.15)" : "hsl(var(--foreground) / 0.07)"}
-                  strokeWidth={mutual ? 1.5 : 1}
+                  stroke={mutual ? "hsl(var(--foreground) / 0.4)" : "hsl(var(--foreground) / 0.2)"}
+                  strokeWidth={mutual ? 2 : 1.5}
                   strokeDasharray={mutual ? undefined : "4 3"}
                 />
               );

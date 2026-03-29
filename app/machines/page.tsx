@@ -39,15 +39,26 @@ export default async function MachinesPage() {
       {/* Empty state */}
       {machines.length === 0 && (
         <div className="text-center py-24 border border-border rounded-xl bg-card/30">
-          <p className="text-muted-foreground mb-4">
-            Register your first machine to start sharing compute.
+          <p className="text-muted-foreground mb-2 text-sm">
+            You don&apos;t have any machines registered yet.
           </p>
-          <Link
-            href="/machines/new"
-            className="text-sm text-foreground underline underline-offset-4 hover:text-foreground/80"
-          >
-            Register a machine →
-          </Link>
+          <p className="text-muted-foreground/60 mb-6 text-xs max-w-sm mx-auto">
+            If you want to share your computer&apos;s power, install the IGTP daemon. If you just want to use someone else&apos;s machine, go to Browse.
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            <Link
+              href="/machines/new"
+              className="text-sm px-4 py-2 bg-foreground text-background rounded-lg font-medium hover:bg-foreground/90 transition-colors"
+            >
+              Register a machine
+            </Link>
+            <Link
+              href="/browse"
+              className="text-sm px-4 py-2 border border-border rounded-lg text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Browse machines
+            </Link>
+          </div>
         </div>
       )}
 

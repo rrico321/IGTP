@@ -27,7 +27,7 @@ export default async function JobsPage() {
           href="/jobs/new"
           className="text-sm bg-foreground text-background px-3 py-1.5 rounded-lg font-medium hover:bg-foreground/90 transition-colors"
         >
-          + Submit job
+          + New Prompt
         </Link>
       </div>
 
