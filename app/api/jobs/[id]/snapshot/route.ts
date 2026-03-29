@@ -1,15 +1,16 @@
 import type { NextRequest } from "next/server";
 import { getJobById, createSnapshot, updateJob, updateMachine } from "@/lib/db";
-
-// Called by igtp-daemon to post usage snapshots and report job completion.
-// Protected by CRON_SECRET (same secret used by daemon).
+import { authenticateRequest } from "@/lib/auth";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const userId = await authenticateRequest(request);
   const secret = request.headers.get("x-cron-secret");
-  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
+  const hasLegacyAuth = process.env.CRON_SECRET && secret === process.env.CRON_SECRET;
+
+  if (!userId && !hasLegacyAuth) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -21,7 +22,6 @@ export async function POST(
 
   const body = await request.json();
 
-  // If the daemon is reporting a terminal status, close out the job
   const terminalStatuses = ["completed", "failed", "timed_out", "cancelled"] as const;
   type TerminalStatus = typeof terminalStatuses[number];
   if (body.status && terminalStatuses.includes(body.status as TerminalStatus)) {
@@ -32,13 +32,10 @@ export async function POST(
       completedAt: new Date().toISOString(),
     });
 
-    // Free up the machine if no more jobs are queued
     await updateMachine(job.machineId, { status: "available" });
-
     return Response.json(updated);
   }
 
-  // Otherwise it's a usage snapshot
   const snapshot = await createSnapshot({
     jobId: id,
     gpuUtilPct: body.gpuUtilPct ?? null,

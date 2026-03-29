@@ -1,13 +1,13 @@
 import type { NextRequest } from "next/server";
 import { getNextQueuedJob, claimJobAsRunning, updateMachine } from "@/lib/db";
-
-// Internal cron / daemon endpoint — dispatch the next queued job for a machine.
-// Called by the igtp-daemon on each machine, or by the cron schedule.
-// No user session required; protected by CRON_SECRET header.
+import { authenticateRequest } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
+  const userId = await authenticateRequest(request);
   const secret = request.headers.get("x-cron-secret");
-  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
+  const hasLegacyAuth = process.env.CRON_SECRET && secret === process.env.CRON_SECRET;
+
+  if (!userId && !hasLegacyAuth) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -22,23 +22,21 @@ export async function POST(request: NextRequest) {
     return Response.json({ dispatched: false, message: "No queued jobs" });
   }
 
-  // Atomically claim the job as running
   const claimed = await claimJobAsRunning(nextJob.id);
   if (!claimed) {
-    // Another daemon claimed it first
     return Response.json({ dispatched: false, message: "Job already claimed" });
   }
 
-  // Mark machine as busy
   await updateMachine(machineId, { status: "busy" });
-
   return Response.json({ dispatched: true, job: claimed });
 }
 
-// Also support GET for daemon polling — returns next queued job without claiming it
 export async function GET(request: NextRequest) {
+  const userId = await authenticateRequest(request);
   const secret = request.headers.get("x-cron-secret");
-  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
+  const hasLegacyAuth = process.env.CRON_SECRET && secret === process.env.CRON_SECRET;
+
+  if (!userId && !hasLegacyAuth) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 

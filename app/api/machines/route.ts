@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { getMachines, createMachine } from "@/lib/db";
+import { authenticateRequest } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -21,12 +22,16 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
+  const userId = await authenticateRequest(request);
+  if (!userId) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-  const { name, description, gpuModel, vramGb, cpuModel, ramGb, ownerId } = body;
-  if (!name || !gpuModel || !vramGb || !cpuModel || !ramGb || !ownerId) {
+  const body = await request.json();
+  const { name, description, gpuModel, vramGb, cpuModel, ramGb } = body;
+  if (!name || !gpuModel || !vramGb || !cpuModel || !ramGb) {
     return Response.json(
-      { error: "Missing required fields: name, gpuModel, vramGb, cpuModel, ramGb, ownerId" },
+      { error: "Missing required fields: name, gpuModel, vramGb, cpuModel, ramGb" },
       { status: 400 }
     );
   }
@@ -39,7 +44,7 @@ export async function POST(request: NextRequest) {
     cpuModel,
     ramGb: Number(ramGb),
     status: "available",
-    ownerId,
+    ownerId: userId,
   });
 
   return Response.json(machine, { status: 201 });
