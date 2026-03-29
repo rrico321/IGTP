@@ -38,7 +38,7 @@ install_node() {
   if [[ "$OSTYPE" == "darwin"* ]]; then
     if command -v brew &>/dev/null; then
       echo -e "Install with Homebrew? (y/n)"
-      read -r answer
+      read -r answer < /dev/tty
       if [[ "$answer" == "y" ]]; then
         brew install node
         return 0
@@ -90,7 +90,7 @@ echo -e "  1. Go to ${BLUE}${API_URL}/settings/api-keys${NC}"
 echo "  2. Click \"Generate API Key\""
 echo "  3. Copy the key and paste it below"
 echo ""
-read -rp "Paste your API key: " API_KEY
+read -rp "Paste your API key: " API_KEY < /dev/tty
 
 if [[ -z "$API_KEY" ]]; then
   echo -e "${RED}✗ API key is required.${NC}"
@@ -153,20 +153,20 @@ echo -e "  CPU:  ${BOLD}$CPU_MODEL${NC}"
 echo -e "  RAM:  ${BOLD}${RAM_GB} GB${NC}"
 echo ""
 echo -e "Does this look right? (y/n)"
-read -r confirm
+read -r confirm < /dev/tty
 
 if [[ "$confirm" != "y" ]]; then
   echo ""
-  read -rp "GPU model (e.g. RTX 4090): " GPU_MODEL
-  read -rp "GPU VRAM in GB (e.g. 24): " VRAM_GB
-  read -rp "CPU model (e.g. Intel i9-13900K): " CPU_MODEL
-  read -rp "RAM in GB (e.g. 64): " RAM_GB
+  read -rp "GPU model (e.g. RTX 4090): " GPU_MODEL < /dev/tty
+  read -rp "GPU VRAM in GB (e.g. 24): " VRAM_GB < /dev/tty
+  read -rp "CPU model (e.g. Intel i9-13900K): " CPU_MODEL < /dev/tty
+  read -rp "RAM in GB (e.g. 64): " RAM_GB < /dev/tty
 fi
 
 # ─── Machine Name ──────────────────────────────────────────────────────────
 echo ""
 HOSTNAME_DEFAULT=$(hostname -s 2>/dev/null || hostname)
-read -rp "Name for this machine [$HOSTNAME_DEFAULT]: " MACHINE_NAME
+read -rp "Name for this machine [$HOSTNAME_DEFAULT]: " MACHINE_NAME < /dev/tty
 MACHINE_NAME=${MACHINE_NAME:-$HOSTNAME_DEFAULT}
 
 # ─── Register Machine ─────────────────────────────────────────────────────
@@ -390,7 +390,7 @@ echo ""
 echo -e "${BOLD}Step 3: Auto-start${NC}"
 echo ""
 echo "Would you like the daemon to start automatically when you log in? (y/n)"
-read -r autostart
+read -r autostart < /dev/tty
 if [[ "$autostart" == "y" ]]; then
   "$IGTP_DIR/igtp" autostart on
 fi
