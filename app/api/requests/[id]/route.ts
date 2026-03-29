@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { getRequestById, updateRequest, getMachineById, getUserById, createNotification } from "@/lib/db";
 import { sendRequestStatusEmail } from "@/lib/email";
 
@@ -43,7 +44,10 @@ export async function PATCH(
       : `Your access request for ${machineName} has been denied.${ownerNote ? ` Owner note: ${ownerNote}` : ""}`;
 
     // Create in-app notification (best-effort)
-    createNotification({ userId: existing.requesterId, type, title, message, requestId: id }).catch(() => {});
+    createNotification({ userId: existing.requesterId, type, title, message, requestId: id }).catch((err) => {
+      console.error("[createNotification] failed:", err);
+      Sentry.captureException(err, { tags: { context: "createNotification" } });
+    });
 
     // Send email (best-effort, only if Resend is configured)
     if (requester) {
@@ -53,7 +57,10 @@ export async function PATCH(
         machineName,
         status,
         ownerNote,
-      }).catch(() => {});
+      }).catch((err) => {
+        console.error("[sendRequestStatusEmail] failed:", err);
+        Sentry.captureException(err, { tags: { context: "sendRequestStatusEmail" } });
+      });
     }
   }
 

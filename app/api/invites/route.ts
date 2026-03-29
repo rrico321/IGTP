@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { requireUserId } from "@/lib/auth";
 import { createInvite, getInvitesByInviter, getUserById } from "@/lib/db";
 import { sendInviteEmail } from "@/lib/email";
@@ -30,7 +31,10 @@ export async function POST(req: NextRequest) {
     to: invite.inviteeEmail,
     inviterName: inviter?.name ?? "Someone",
     inviteUrl,
-  }).catch(() => {});
+  }).catch((err) => {
+    console.error("[sendInviteEmail] failed:", err);
+    Sentry.captureException(err, { tags: { context: "sendInviteEmail" } });
+  });
 
   return Response.json({ invite, inviteUrl });
 }
