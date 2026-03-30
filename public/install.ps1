@@ -267,6 +267,7 @@ if "%1"=="start" goto start
 if "%1"=="stop" goto stop
 if "%1"=="status" goto status
 if "%1"=="logs" goto logs
+if "%1"=="kick" goto kick
 if "%1"=="autostart" goto autostart
 if "%1"=="uninstall" goto uninstall
 goto help
@@ -296,6 +297,18 @@ goto end
 
 :logs
 type "%LOG_FILE%"
+goto end
+
+:kick
+echo Killing all tunnel connections...
+taskkill /f /im cloudflared.exe >nul 2>&1
+echo All tunnels killed.
+for /f "usebackq tokens=*" %%a in ("%IGTP_DIR%\.env") do set %%a
+if defined IGTP_API_KEY (
+    echo Notifying server...
+    curl -s -X POST -H "Authorization: Bearer %IGTP_API_KEY%" -H "Content-Type: application/json" -d "{\"machineId\":\"%IGTP_MACHINE_ID%\"}" "%IGTP_API_URL%/api/machines/%IGTP_MACHINE_ID%/kick" >nul 2>&1
+)
+echo Done. All remote sessions disconnected.
 goto end
 
 :autostart
@@ -329,6 +342,7 @@ echo   igtp start           Start the daemon
 echo   igtp stop            Stop the daemon
 echo   igtp status          Show daemon status and config
 echo   igtp logs            Show daemon log output
+echo   igtp kick            Kill all tunnels and disconnect remote users
 echo   igtp autostart on    Start daemon automatically on login
 echo   igtp autostart off   Disable auto-start
 echo   igtp uninstall       Remove IGTP daemon from this machine
