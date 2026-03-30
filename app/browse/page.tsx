@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { getMachines, getUsers, getTrustedUserIds, getApprovedRequest } from '@/lib/db'
+import { getMachines, getUsers, getTrustedUserIds, getApprovedRequest, getAllMachineModels } from '@/lib/db'
+import type { MachineModel } from '@/lib/types'
 import { requireUserId } from '@/lib/auth'
 import { BrowseFilters } from './BrowseFilters'
 import { MachineStatusBadge } from '@/app/components/StatusBadge'
@@ -14,12 +15,18 @@ export default async function BrowsePage({
   const userId = await requireUserId()
   const { q, gpuModel, minVram, showAll } = await searchParams
 
-  const [trustedIds, allMachines, allUsers] = await Promise.all([
+  const [trustedIds, allMachines, allUsers, allModels] = await Promise.all([
     getTrustedUserIds(userId),
     getMachines(),
     getUsers(),
+    getAllMachineModels(),
   ])
   const userMap = new Map<string, User>(allUsers.map((u) => [u.id, u]))
+  const modelsByMachine = new Map<string, MachineModel[]>()
+  for (const m of allModels) {
+    if (!modelsByMachine.has(m.machineId)) modelsByMachine.set(m.machineId, [])
+    modelsByMachine.get(m.machineId)!.push(m)
+  }
 
   let machines = allMachines.filter((m) => trustedIds.includes(m.ownerId))
 
@@ -50,6 +57,12 @@ export default async function BrowsePage({
   }
 
   const hasFilters = !!(q || gpuModel || minVram || showAll === '1')
+
+  function formatSize(bytes: number | null): string {
+    if (!bytes) return ''
+    const gb = bytes / 1e9
+    return gb >= 1 ? `${gb.toFixed(1)}GB` : `${(bytes / 1e6).toFixed(0)}MB`
+  }
 
   // Batch fetch connection status for all visible machines
   const approvedRequests = await Promise.all(
@@ -97,6 +110,7 @@ export default async function BrowsePage({
         <div className="space-y-2 mt-6">
           {machines.map((machine) => {
             const owner = userMap.get(machine.ownerId)
+            const models = modelsByMachine.get(machine.id) || []
             return (
               <Link
                 key={machine.id}
@@ -122,6 +136,30 @@ export default async function BrowsePage({
                         <span>Owner: <span className="text-foreground/80">{owner.name}</span></span>
                       )}
                     </div>
+                    {(models.length > 0 || machine.a1111Enabled) && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {machine.a1111Enabled && (
+                          <span className={`inline-flex items-center gap-1 text-xs rounded px-2 py-0.5 font-medium ${
+                            machine.a1111Available
+                              ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                              : "bg-purple-500/5 text-purple-400/50 border border-purple-500/10"
+                          }`}>
+                            A1111 {machine.a1111Available ? "available" : "at capacity"}
+                          </span>
+                        )}
+                        {models.map((model) => (
+                          <span
+                            key={model.modelName}
+                            className="inline-flex items-center gap-1 text-xs font-mono bg-foreground/5 text-foreground/70 rounded px-2 py-0.5"
+                          >
+                            {model.modelName}
+                            {model.sizeBytes ? (
+                              <span className="text-muted-foreground/50">{formatSize(model.sizeBytes)}</span>
+                            ) : null}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <span className="text-muted-foreground/40 shrink-0 text-sm">→</span>
                 </div>

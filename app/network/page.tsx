@@ -154,21 +154,29 @@ export default async function NetworkPage() {
                             {online ? "online" : "offline"}
                           </span>
                         </div>
-                        {models.length > 0 ? (
-                          <div className="flex flex-wrap gap-1.5 mt-2 ml-4">
-                            {models.map((model) => (
-                              <span
-                                key={model.modelName}
-                                className="inline-flex items-center gap-1 text-xs font-mono bg-foreground/5 text-foreground/70 rounded px-2 py-0.5"
-                              >
-                                {model.modelName}
-                                {model.sizeBytes ? (
-                                  <span className="text-muted-foreground/50">{formatSize(model.sizeBytes)}</span>
-                                ) : null}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
+                        <div className="flex flex-wrap gap-1.5 mt-2 ml-4">
+                          {machine.a1111Enabled && (
+                            <span className={`inline-flex items-center gap-1 text-xs rounded px-2 py-0.5 font-medium ${
+                              machine.a1111Available
+                                ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                                : "bg-purple-500/5 text-purple-400/50 border border-purple-500/10"
+                            }`}>
+                              A1111 {machine.a1111Available ? "available" : "at capacity"}
+                            </span>
+                          )}
+                          {models.map((model) => (
+                            <span
+                              key={model.modelName}
+                              className="inline-flex items-center gap-1 text-xs font-mono bg-foreground/5 text-foreground/70 rounded px-2 py-0.5"
+                            >
+                              {model.modelName}
+                              {model.sizeBytes ? (
+                                <span className="text-muted-foreground/50">{formatSize(model.sizeBytes)}</span>
+                              ) : null}
+                            </span>
+                          ))}
+                        </div>
+                        {!machine.a1111Enabled && models.length === 0 && (
                           <p className="text-xs text-muted-foreground/40 italic ml-4 mt-1">No models synced</p>
                         )}
                       </div>
