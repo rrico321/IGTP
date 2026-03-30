@@ -28,7 +28,7 @@
 
 import { spawn, execSync, type ChildProcess } from "child_process";
 import { createWriteStream } from "fs";
-import { tmpdir } from "os";
+import { tmpdir, platform } from "os";
 import { join } from "path";
 import { createReadStream, existsSync } from "fs";
 import { unlink, readFile } from "fs/promises";
@@ -46,6 +46,12 @@ if (existsSync(envPath)) {
     }
   }
 }
+
+// ─── Platform-aware shell ─────────────────────────────────────────────────────
+
+const IS_WIN = platform() === "win32";
+const SHELL = IS_WIN ? "cmd.exe" : "sh";
+const SHELL_FLAG = IS_WIN ? "/c" : "-c";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -242,9 +248,9 @@ async function ensureA1111Running(): Promise<boolean> {
   }
 
   console.log(`[a1111] Starting: ${A1111_LAUNCH_CMD}`);
-  a1111Process = spawn("sh", ["-c", A1111_LAUNCH_CMD], {
+  a1111Process = spawn(SHELL, [SHELL_FLAG, A1111_LAUNCH_CMD], {
     stdio: ["ignore", "pipe", "pipe"],
-    detached: true,
+    detached: !IS_WIN,
   });
 
   a1111Process.stdout?.on("data", (d: Buffer) => {
@@ -442,8 +448,8 @@ async function executeJob(job: GpuJob): Promise<void> {
     cmd = "docker";
     args = dockerArgs;
   } else {
-    cmd = "sh";
-    args = ["-c", job.command];
+    cmd = SHELL;
+    args = [SHELL_FLAG, job.command];
   }
 
   const child = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"] });
