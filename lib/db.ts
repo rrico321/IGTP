@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-import type { Machine, AccessRequest, User, TrustConnection, Notification, GpuJob, JobUsageSnapshot, UsageReport, Invite, ApiKey, MachineModel, Conversation, ConversationMessage, FriendRequest, A1111Session } from "./types";
+import type { Machine, AccessRequest, User, TrustConnection, Notification, GpuJob, JobUsageSnapshot, UsageReport, Invite, ApiKey, MachineModel, Conversation, ConversationMessage, FriendRequest, A1111Session, DashboardStats } from "./types";
 
 function getSql() {
   const url = process.env.DATABASE_URL;
@@ -1273,4 +1273,312 @@ export async function requestStopSession(id: string, userId: string): Promise<bo
     RETURNING id
   `;
   return rows.length > 0;
+}
+
+// ─── Dashboard Stats ──────────────────────────────────────────────────────────
+
+export async function getDashboardStats(userId: string, since?: string): Promise<DashboardStats> {
+  const sql = getSql();
+
+  const sinceFilter = since ?? null;
+
+  const [
+    networkSizeRows,
+    machinesOnlineRows,
+    totalModelsRows,
+    tokensUsedRows,
+    tokensServedRows,
+    conversationCountRows,
+    jobsCompletedRows,
+    topModelsUsedRows,
+    myMachineStatsRows,
+    myMachineTopModelRows,
+    myMachineConnectionRows,
+    popularMachinesRows,
+    popularModelsRows,
+    pendingFriendRows,
+    pendingAccessRows,
+    a1111SessionCountRows,
+    a1111TotalMinutesRows,
+  ] = await Promise.all([
+    // networkSize — count of trusted user IDs (all-time)
+    sql`
+      SELECT COUNT(*)::int AS "networkSize"
+      FROM trust_connections
+      WHERE user_id = ${userId}
+    `,
+
+    // machinesOnline — machines in network online now (all-time)
+    sql`
+      SELECT COUNT(*)::int AS "machinesOnline"
+      FROM machines
+      WHERE owner_id IN (
+        SELECT trusted_user_id FROM trust_connections WHERE user_id = ${userId}
+      )
+        AND last_heartbeat_at IS NOT NULL
+        AND last_heartbeat_at > NOW() - INTERVAL '5 minutes'
+    `,
+
+    // totalModelsAvailable — distinct models across network machines (all-time)
+    sql`
+      SELECT COUNT(DISTINCT mm.model_name)::int AS "totalModelsAvailable"
+      FROM machine_models mm
+      JOIN machines m ON m.id = mm.machine_id
+      WHERE m.owner_id IN (
+        SELECT trusted_user_id FROM trust_connections WHERE user_id = ${userId}
+      )
+    `,
+
+    // tokensUsed — sum total_tokens as requester (time-filtered)
+    sql`
+      SELECT COALESCE(SUM(total_tokens), 0)::bigint AS "tokensUsed"
+      FROM gpu_jobs
+      WHERE requester_id = ${userId}
+        AND (${sinceFilter}::timestamptz IS NULL OR queued_at >= ${sinceFilter}::timestamptz)
+    `,
+
+    // tokensServed — sum total_tokens on user's machines (time-filtered)
+    sql`
+      SELECT COALESCE(SUM(j.total_tokens), 0)::bigint AS "tokensServed"
+      FROM gpu_jobs j
+      JOIN machines m ON m.id = j.machine_id
+      WHERE m.owner_id = ${userId}
+        AND (${sinceFilter}::timestamptz IS NULL OR j.queued_at >= ${sinceFilter}::timestamptz)
+    `,
+
+    // conversationCount (time-filtered)
+    sql`
+      SELECT COUNT(*)::int AS "conversationCount"
+      FROM conversations
+      WHERE user_id = ${userId}
+        AND (${sinceFilter}::timestamptz IS NULL OR created_at >= ${sinceFilter}::timestamptz)
+    `,
+
+    // jobsCompleted as requester (time-filtered)
+    sql`
+      SELECT COUNT(*)::int AS "jobsCompleted"
+      FROM gpu_jobs
+      WHERE requester_id = ${userId}
+        AND status = 'completed'
+        AND (${sinceFilter}::timestamptz IS NULL OR queued_at >= ${sinceFilter}::timestamptz)
+    `,
+
+    // topModelsUsed — top 5 models by job count as requester (time-filtered)
+    sql`
+      SELECT
+        model,
+        COUNT(*)::int AS "jobCount",
+        COALESCE(SUM(total_tokens), 0)::bigint AS "totalTokens"
+      FROM gpu_jobs
+      WHERE requester_id = ${userId}
+        AND model IS NOT NULL
+        AND (${sinceFilter}::timestamptz IS NULL OR queued_at >= ${sinceFilter}::timestamptz)
+      GROUP BY model
+      ORDER BY "jobCount" DESC
+      LIMIT 5
+    `,
+
+    // myMachineStats — base stats per machine (time-filtered for hours/tokens)
+    sql`
+      SELECT
+        m.id AS "machineId",
+        m.name AS "machineName",
+        (m.last_heartbeat_at IS NOT NULL AND m.last_heartbeat_at > NOW() - INTERVAL '5 minutes') AS "online",
+        COALESCE(SUM(
+          CASE WHEN j.status = 'completed' AND j.started_at IS NOT NULL AND j.completed_at IS NOT NULL
+            THEN EXTRACT(EPOCH FROM (j.completed_at - j.started_at)) / 3600.0
+            ELSE 0
+          END
+        ), 0)::float AS "totalHoursServed",
+        COALESCE(SUM(j.total_tokens), 0)::bigint AS "totalTokensProcessed"
+      FROM machines m
+      LEFT JOIN gpu_jobs j ON j.machine_id = m.id
+        AND (${sinceFilter}::timestamptz IS NULL OR j.queued_at >= ${sinceFilter}::timestamptz)
+      WHERE m.owner_id = ${userId}
+      GROUP BY m.id, m.name, m.last_heartbeat_at
+    `,
+
+    // myMachineTopModel — most used model per machine (time-filtered)
+    sql`
+      SELECT DISTINCT ON (j.machine_id)
+        j.machine_id AS "machineId",
+        j.model AS "topModel"
+      FROM gpu_jobs j
+      JOIN machines m ON m.id = j.machine_id
+      WHERE m.owner_id = ${userId}
+        AND j.model IS NOT NULL
+        AND (${sinceFilter}::timestamptz IS NULL OR j.queued_at >= ${sinceFilter}::timestamptz)
+      GROUP BY j.machine_id, j.model
+      ORDER BY j.machine_id, COUNT(*) DESC
+    `,
+
+    // myMachineConnections — active approved connections per machine (not filtered)
+    sql`
+      SELECT
+        ar.machine_id AS "machineId",
+        COUNT(*)::int AS "activeConnections"
+      FROM access_requests ar
+      JOIN machines m ON m.id = ar.machine_id
+      WHERE m.owner_id = ${userId}
+        AND ar.status = 'approved'
+        AND (ar.expires_at IS NULL OR ar.expires_at > NOW())
+      GROUP BY ar.machine_id
+    `,
+
+    // popularMachines — top 3 machines in network by job count (time-filtered)
+    sql`
+      SELECT
+        m.id AS "machineId",
+        m.name AS "machineName",
+        COUNT(*)::int AS "jobCount"
+      FROM gpu_jobs j
+      JOIN machines m ON m.id = j.machine_id
+      WHERE m.owner_id IN (
+        SELECT trusted_user_id FROM trust_connections WHERE user_id = ${userId}
+      )
+        AND (${sinceFilter}::timestamptz IS NULL OR j.queued_at >= ${sinceFilter}::timestamptz)
+      GROUP BY m.id, m.name
+      ORDER BY "jobCount" DESC
+      LIMIT 3
+    `,
+
+    // popularModels — top 5 models across network by job count (time-filtered)
+    sql`
+      SELECT
+        j.model,
+        COUNT(*)::int AS "jobCount"
+      FROM gpu_jobs j
+      JOIN machines m ON m.id = j.machine_id
+      WHERE m.owner_id IN (
+        SELECT trusted_user_id FROM trust_connections WHERE user_id = ${userId}
+      )
+        AND j.model IS NOT NULL
+        AND (${sinceFilter}::timestamptz IS NULL OR j.queued_at >= ${sinceFilter}::timestamptz)
+      GROUP BY j.model
+      ORDER BY "jobCount" DESC
+      LIMIT 5
+    `,
+
+    // pendingFriendRequests (not filtered)
+    sql`
+      SELECT
+        fr.id,
+        fr.from_user_id AS "fromUserId",
+        u.name AS "fromUserName",
+        u.email AS "fromUserEmail",
+        fr.created_at AS "createdAt"
+      FROM friend_requests fr
+      JOIN users u ON u.id = fr.from_user_id
+      WHERE fr.to_user_id = ${userId} AND fr.status = 'pending'
+      ORDER BY fr.created_at DESC
+    `,
+
+    // pendingAccessRequests on YOUR machines (not filtered)
+    sql`
+      SELECT
+        ar.id,
+        ar.machine_id AS "machineId",
+        m.name AS "machineName",
+        ar.requester_id AS "requesterId",
+        u.name AS "requesterName",
+        ar.purpose,
+        ar.estimated_hours AS "estimatedHours",
+        ar.created_at AS "createdAt"
+      FROM access_requests ar
+      JOIN machines m ON m.id = ar.machine_id
+      JOIN users u ON u.id = ar.requester_id
+      WHERE m.owner_id = ${userId} AND ar.status = 'pending'
+      ORDER BY ar.created_at DESC
+    `,
+
+    // a1111SessionCount as requester (time-filtered)
+    sql`
+      SELECT COUNT(*)::int AS "a1111SessionCount"
+      FROM a1111_sessions
+      WHERE requester_id = ${userId}
+        AND (${sinceFilter}::timestamptz IS NULL OR created_at >= ${sinceFilter}::timestamptz)
+    `,
+
+    // a1111TotalMinutes from ended sessions (time-filtered)
+    sql`
+      SELECT COALESCE(SUM(
+        EXTRACT(EPOCH FROM (updated_at - created_at)) / 60.0
+      ), 0)::float AS "a1111TotalMinutes"
+      FROM a1111_sessions
+      WHERE requester_id = ${userId}
+        AND status = 'ended'
+        AND (${sinceFilter}::timestamptz IS NULL OR created_at >= ${sinceFilter}::timestamptz)
+    `,
+  ]);
+
+  // Build lookup maps for machine sub-queries
+  const topModelMap = new Map<string, string | null>();
+  for (const row of myMachineTopModelRows) {
+    topModelMap.set(row.machineId as string, (row.topModel as string) ?? null);
+  }
+
+  const connectionMap = new Map<string, number>();
+  for (const row of myMachineConnectionRows) {
+    connectionMap.set(row.machineId as string, row.activeConnections as number);
+  }
+
+  return {
+    networkSize: (networkSizeRows[0] as any).networkSize,
+    machinesOnline: (machinesOnlineRows[0] as any).machinesOnline,
+    totalModelsAvailable: (totalModelsRows[0] as any).totalModelsAvailable,
+
+    tokensUsed: Number((tokensUsedRows[0] as any).tokensUsed),
+    tokensServed: Number((tokensServedRows[0] as any).tokensServed),
+    conversationCount: (conversationCountRows[0] as any).conversationCount,
+    jobsCompleted: (jobsCompletedRows[0] as any).jobsCompleted,
+
+    topModelsUsed: topModelsUsedRows.map((r: any) => ({
+      model: r.model as string,
+      jobCount: r.jobCount as number,
+      totalTokens: Number(r.totalTokens),
+    })),
+
+    myMachineStats: myMachineStatsRows.map((r: any) => ({
+      machineId: r.machineId as string,
+      machineName: r.machineName as string,
+      online: r.online as boolean,
+      totalHoursServed: Math.round((r.totalHoursServed as number) * 100) / 100,
+      totalTokensProcessed: Number(r.totalTokensProcessed),
+      activeConnections: connectionMap.get(r.machineId as string) ?? 0,
+      topModel: topModelMap.get(r.machineId as string) ?? null,
+    })),
+
+    popularMachines: popularMachinesRows.map((r: any) => ({
+      machineId: r.machineId as string,
+      machineName: r.machineName as string,
+      jobCount: r.jobCount as number,
+    })),
+
+    popularModels: popularModelsRows.map((r: any) => ({
+      model: r.model as string,
+      jobCount: r.jobCount as number,
+    })),
+
+    pendingFriendRequests: pendingFriendRows.map((r: any) => ({
+      id: r.id as string,
+      fromUserId: r.fromUserId as string,
+      fromUserName: r.fromUserName as string,
+      fromUserEmail: r.fromUserEmail as string,
+      createdAt: r.createdAt as string,
+    })),
+
+    pendingAccessRequests: pendingAccessRows.map((r: any) => ({
+      id: r.id as string,
+      machineId: r.machineId as string,
+      machineName: r.machineName as string,
+      requesterId: r.requesterId as string,
+      requesterName: r.requesterName as string,
+      purpose: r.purpose as string,
+      estimatedHours: r.estimatedHours as number,
+      createdAt: r.createdAt as string,
+    })),
+
+    a1111SessionCount: (a1111SessionCountRows[0] as any).a1111SessionCount,
+    a1111TotalMinutes: Math.round(((a1111TotalMinutesRows[0] as any).a1111TotalMinutes as number) * 100) / 100,
+  };
 }

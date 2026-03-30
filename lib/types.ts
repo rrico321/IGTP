@@ -169,6 +169,71 @@ export interface A1111Session {
   updatedAt: string;
 }
 
+export interface DashboardStats {
+  // KPI cards (always all-time, not filtered)
+  networkSize: number;
+  machinesOnline: number;
+  totalModelsAvailable: number;
+
+  // Time-filtered stats
+  tokensUsed: number;
+  tokensServed: number;
+  conversationCount: number;
+  jobsCompleted: number;
+
+  // Your usage (time-filtered)
+  topModelsUsed: Array<{
+    model: string;
+    jobCount: number;
+    totalTokens: number;
+  }>;
+
+  // Your machines stats (time-filtered)
+  myMachineStats: Array<{
+    machineId: string;
+    machineName: string;
+    online: boolean;
+    totalHoursServed: number;
+    totalTokensProcessed: number;
+    activeConnections: number;
+    topModel: string | null;
+  }>;
+
+  // Network highlights (time-filtered)
+  popularMachines: Array<{
+    machineId: string;
+    machineName: string;
+    jobCount: number;
+  }>;
+  popularModels: Array<{
+    model: string;
+    jobCount: number;
+  }>;
+
+  // Pending actions (not filtered)
+  pendingFriendRequests: Array<{
+    id: string;
+    fromUserId: string;
+    fromUserName: string;
+    fromUserEmail: string;
+    createdAt: string;
+  }>;
+  pendingAccessRequests: Array<{
+    id: string;
+    machineId: string;
+    machineName: string;
+    requesterId: string;
+    requesterName: string;
+    purpose: string;
+    estimatedHours: number;
+    createdAt: string;
+  }>;
+
+  // A1111 stats (time-filtered)
+  a1111SessionCount: number;
+  a1111TotalMinutes: number;
+}
+
 export interface UsageReport {
   userId: string;
   from: string;
