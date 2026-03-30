@@ -83,8 +83,8 @@ export default async function BrowseMachineDetailPage({
         </dl>
       </div>
 
-      {/* Access timer */}
-      {approvedRequest?.expiresAt && (
+      {/* Access timer + disconnect */}
+      {approvedRequest && (
         <AccessTimer
           expiresAt={approvedRequest.expiresAt}
           requestId={approvedRequest.id}
