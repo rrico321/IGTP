@@ -41,6 +41,9 @@ export async function POST(request: NextRequest) {
   if (accessRequest.status !== "approved") {
     return Response.json({ error: "Access request is not approved" }, { status: 400 });
   }
+  if (accessRequest.expiresAt && new Date(accessRequest.expiresAt) <= new Date()) {
+    return Response.json({ error: "Your access to this machine has expired" }, { status: 403 });
+  }
 
   const machine = await getMachineById(accessRequest.machineId);
   if (!machine) {

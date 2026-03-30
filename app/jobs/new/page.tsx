@@ -13,7 +13,10 @@ export default async function NewJobPage({
 
   // Only show approved requests that can accept jobs
   const requests = await getRequestsByRequester(userId)
-  const approvedRequests = requests.filter((r) => r.status === 'approved')
+  const now = new Date()
+  const approvedRequests = requests.filter(
+    (r) => r.status === 'approved' && (!r.expiresAt || new Date(r.expiresAt) > now)
+  )
 
   if (approvedRequests.length === 0) {
     redirect('/requests')

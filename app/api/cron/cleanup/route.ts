@@ -28,8 +28,19 @@ export async function GET(req: NextRequest) {
     RETURNING id
   `;
 
+  // Expire approved requests that have passed their expiry time
+  const expired = await sql`
+    UPDATE access_requests
+    SET status = 'expired', updated_at = NOW()
+    WHERE status = 'approved'
+      AND expires_at IS NOT NULL
+      AND expires_at <= NOW()
+    RETURNING id
+  `;
+
   return NextResponse.json({
     cancelled: cancelled.length,
+    expired: expired.length,
     cutoff,
   });
 }
