@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getMachineById, getModelsForMachine } from '@/lib/db'
+import { getMachineById, getModelsForMachine, getConnectedUsersForMachine } from '@/lib/db'
 import { MachineForm } from '../MachineForm'
 import { updateMachineAction, updateMachineStatusAction } from '../actions'
 import { MachineStatusBadge } from '@/app/components/StatusBadge'
+import { ConnectedUsersPanel } from './ConnectedUsersPanel'
 import type { Machine } from '@/lib/types'
 
 const NEXT_STATUS: Record<Machine['status'], Machine['status']> = {
@@ -31,7 +32,10 @@ export default async function MachineDetailPage({
   const machine = await getMachineById(id)
   if (!machine) notFound()
 
-  const models = await getModelsForMachine(id)
+  const [models, connectedUsers] = await Promise.all([
+    getModelsForMachine(id),
+    getConnectedUsersForMachine(id),
+  ])
 
   const isEditing = edit === '1'
   const nextStatus = NEXT_STATUS[machine.status]
@@ -125,6 +129,13 @@ export default async function MachineDetailPage({
               Requests
             </Link>
           </div>
+        </div>
+      )}
+
+      {/* Connected Users */}
+      {!isEditing && (
+        <div className="mb-4">
+          <ConnectedUsersPanel users={connectedUsers} machineId={machine.id} />
         </div>
       )}
 
