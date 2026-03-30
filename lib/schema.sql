@@ -223,17 +223,4 @@ UPDATE a1111_sessions SET status = 'ended', updated_at = NOW()
 WHERE status IN ('pending', 'active', 'failed') AND tunnel_url IS NULL
   AND created_at < NOW() - INTERVAL '5 minutes';
 
--- Seed data (idempotent via ON CONFLICT DO NOTHING)
-INSERT INTO users (id, name, email, created_at) VALUES
-  ('user-1', 'Alice Chen', 'alice@example.com', '2026-03-01T00:00:00.000Z'),
-  ('user-2', 'Bob Martinez', 'bob@example.com', '2026-03-01T00:00:00.000Z')
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO machines (id, name, description, gpu_model, vram_gb, cpu_model, ram_gb, status, owner_id, created_at, updated_at) VALUES
-  ('machine-1', 'Alice''s Beast', 'High-end gaming rig, great for inference', 'RTX 4090', 24, 'Intel i9-13900K', 64, 'available', 'user-1', '2026-03-01T00:00:00.000Z', '2026-03-01T00:00:00.000Z')
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO trust_connections (id, user_id, trusted_user_id, created_at) VALUES
-  ('trust-1', 'user-1', 'user-2', '2026-03-27T00:00:00.000Z'),
-  ('trust-2', 'user-2', 'user-1', '2026-03-27T00:00:00.000Z')
-ON CONFLICT (id) DO NOTHING;
+-- Seed data removed — real users register via the app
