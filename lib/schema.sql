@@ -223,11 +223,6 @@ UPDATE a1111_sessions SET status = 'ended', updated_at = NOW()
 WHERE status IN ('pending', 'active', 'failed') AND tunnel_url IS NULL
   AND created_at < NOW() - INTERVAL '5 minutes';
 
--- One-time cleanup: delete machine-1774818569169
-DELETE FROM a1111_sessions WHERE machine_id = 'machine-1774818569169';
-DELETE FROM machine_models WHERE machine_id = 'machine-1774818569169';
-DELETE FROM machines WHERE id = 'machine-1774818569169';
-
 -- Seed data (idempotent via ON CONFLICT DO NOTHING)
 INSERT INTO users (id, name, email, created_at) VALUES
   ('user-1', 'Alice Chen', 'alice@example.com', '2026-03-01T00:00:00.000Z'),
