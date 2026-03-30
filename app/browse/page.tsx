@@ -68,8 +68,11 @@ export default async function BrowsePage({
   const approvedRequests = await Promise.all(
     machines.map((m) => getApprovedRequest(m.id, userId))
   )
-  const connectionMap = new Map<string, string | null>(
-    machines.map((m, i) => [m.id, approvedRequests[i]?.expiresAt ?? null])
+  const connectionMap = new Map<string, { connected: boolean; expiresAt: string | null }>(
+    machines.map((m, i) => [m.id, {
+      connected: !!approvedRequests[i],
+      expiresAt: approvedRequests[i]?.expiresAt ?? null,
+    }])
   )
 
   return (
@@ -122,7 +125,10 @@ export default async function BrowsePage({
                     <div className="flex items-center gap-2.5 mb-1 flex-wrap">
                       <span className="font-medium text-sm text-foreground">{machine.name}</span>
                       <MachineStatusBadge status={machine.status} />
-                      <ConnectionBadge expiresAt={connectionMap.get(machine.id) ?? null} />
+                      <ConnectionBadge
+                        connected={connectionMap.get(machine.id)?.connected ?? false}
+                        expiresAt={connectionMap.get(machine.id)?.expiresAt ?? null}
+                      />
                     </div>
                     {machine.description && (
                       <p className="text-sm text-muted-foreground mb-1.5 line-clamp-1">
