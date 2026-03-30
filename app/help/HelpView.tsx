@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Search, ChevronRight, ArrowLeft, BookOpen } from 'lucide-react'
+import { Search, ChevronRight, ChevronLeft, ArrowLeft, BookOpen } from 'lucide-react'
 import { HELP_ARTICLES, CATEGORIES, type HelpArticle } from './articles'
 
 function MarkdownContent({ content }: { content: string }) {
@@ -116,6 +116,9 @@ export function HelpView() {
   }, [filteredArticles])
 
   const selectedArticle = HELP_ARTICLES.find((a) => a.id === selectedId) ?? null
+  const selectedIndex = HELP_ARTICLES.findIndex((a) => a.id === selectedId)
+  const prevArticle = selectedIndex > 0 ? HELP_ARTICLES[selectedIndex - 1] : null
+  const nextArticle = selectedIndex < HELP_ARTICLES.length - 1 ? HELP_ARTICLES[selectedIndex + 1] : null
 
   function selectArticle(id: string) {
     setSelectedId(id)
@@ -207,6 +210,31 @@ export function HelpView() {
 
           {selectedArticle ? (
             <div className="flex-1 overflow-y-auto px-6 py-6">
+              {/* Prev / Next navigation */}
+              <div className="flex items-center justify-between gap-2 mb-5 pb-4 border-b border-border">
+                {prevArticle ? (
+                  <button
+                    onClick={() => selectArticle(prevArticle.id)}
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors min-w-0"
+                  >
+                    <ChevronLeft className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{prevArticle.title}</span>
+                  </button>
+                ) : (
+                  <div />
+                )}
+                {nextArticle ? (
+                  <button
+                    onClick={() => selectArticle(nextArticle.id)}
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors min-w-0 text-right"
+                  >
+                    <span className="truncate">{nextArticle.title}</span>
+                    <ChevronRight className="h-4 w-4 shrink-0" />
+                  </button>
+                ) : (
+                  <div />
+                )}
+              </div>
               <MarkdownContent content={selectedArticle.content} />
             </div>
           ) : (

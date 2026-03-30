@@ -4,6 +4,7 @@ import { requireUserId } from '@/lib/auth'
 import { updateMachineStatusAction } from './actions'
 import { MachineStatusBadge } from '@/app/components/StatusBadge'
 import { DeleteMachineButton } from './DeleteMachineButton'
+import { Terminal, Monitor, Apple } from 'lucide-react'
 import type { Machine } from '@/lib/types'
 
 const NEXT_STATUS: Record<Machine['status'], Machine['status']> = {
@@ -28,36 +29,66 @@ export default async function MachinesPage() {
               : `${machines.length} machine${machines.length === 1 ? '' : 's'} registered`}
           </p>
         </div>
-        <Link
-          href="/machines/new"
-          className="inline-flex items-center bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shrink-0"
-        >
-          + Register Machine
-        </Link>
       </div>
 
-      {/* Empty state */}
+      {/* Empty state — daemon install instructions */}
       {machines.length === 0 && (
-        <div className="text-center px-8 py-24 border border-border rounded-xl bg-card/30">
-          <p className="text-muted-foreground mb-2 text-sm">
-            You don&apos;t have any machines registered yet.
-          </p>
-          <p className="text-muted-foreground/60 mb-6 text-xs max-w-sm mx-auto">
-            If you want to share your computer&apos;s power, install the IGTP daemon. If you just want to use someone else&apos;s machine, go to Browse.
-          </p>
-          <div className="flex items-center justify-center gap-3">
-            <Link
-              href="/machines/new"
-              className="text-sm px-4 py-2 bg-foreground text-background rounded-lg font-medium hover:bg-foreground/90 transition-colors"
-            >
-              Register a machine
-            </Link>
-            <Link
-              href="/browse"
-              className="text-sm px-4 py-2 border border-border rounded-lg text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Browse machines
-            </Link>
+        <div className="border border-border rounded-xl bg-card/30 px-8 py-10">
+          <div className="text-center mb-8">
+            <h2 className="text-lg font-semibold text-foreground mb-2">Add your first machine</h2>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              Install the IGTP daemon on the computer you want to share. It takes about 2 minutes — the installer will detect your hardware and connect automatically.
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3 max-w-2xl mx-auto mb-8">
+            {/* Windows */}
+            <div className="border border-border rounded-lg p-4 bg-card">
+              <div className="flex items-center gap-2 mb-3">
+                <Monitor className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">Windows</span>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">Open PowerShell and run:</p>
+              <code className="block bg-muted text-foreground text-xs font-mono p-2.5 rounded-md break-all leading-relaxed select-all">
+                irm https://igtp.vercel.app/install.ps1 | iex
+              </code>
+            </div>
+
+            {/* Mac */}
+            <div className="border border-border rounded-lg p-4 bg-card">
+              <div className="flex items-center gap-2 mb-3">
+                <Apple className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">Mac</span>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">Open Terminal and run:</p>
+              <code className="block bg-muted text-foreground text-xs font-mono p-2.5 rounded-md break-all leading-relaxed select-all">
+                curl -fsSL https://igtp.vercel.app/install.sh | bash
+              </code>
+            </div>
+
+            {/* Linux */}
+            <div className="border border-border rounded-lg p-4 bg-card">
+              <div className="flex items-center gap-2 mb-3">
+                <Terminal className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">Linux</span>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">Open a terminal and run:</p>
+              <code className="block bg-muted text-foreground text-xs font-mono p-2.5 rounded-md break-all leading-relaxed select-all">
+                curl -fsSL https://igtp.vercel.app/install.sh | bash
+              </code>
+            </div>
+          </div>
+
+          <div className="text-center space-y-3">
+            <p className="text-xs text-muted-foreground">
+              You&apos;ll need an <Link href="/settings" className="text-primary underline underline-offset-2 hover:opacity-80">API key</Link> from Settings — the installer will ask for it.
+            </p>
+            <p className="text-xs text-muted-foreground/60">
+              Just want to use someone else&apos;s machine?{' '}
+              <Link href="/browse" className="text-primary underline underline-offset-2 hover:opacity-80">
+                Browse machines
+              </Link>
+            </p>
           </div>
         </div>
       )}
