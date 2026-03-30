@@ -28,20 +28,6 @@ function formatTime(iso: string): string {
   });
 }
 
-function computeTokensPerSec(
-  messages: ConversationMessage[],
-  msgIndex: number
-): number | null {
-  const msg = messages[msgIndex];
-  if (msg.role !== "assistant" || !msg.tokens) return null;
-  // Find the preceding user message to compute elapsed time
-  const prevMsg = messages[msgIndex - 1];
-  if (!prevMsg || prevMsg.role !== "user") return null;
-  const elapsed =
-    (new Date(msg.createdAt).getTime() - new Date(prevMsg.createdAt).getTime()) / 1000;
-  if (elapsed <= 0) return null;
-  return Math.round((msg.tokens / elapsed) * 10) / 10;
-}
 
 export function ConversationsView({
   initialConversations,
@@ -145,6 +131,7 @@ export function ConversationsView({
       content,
       jobId: null,
       tokens: null,
+      tokensPerSec: null,
       createdAt: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, tempMsg]);
@@ -290,8 +277,7 @@ export function ConversationsView({
                   Send a message to start the conversation.
                 </p>
               )}
-              {messages.map((msg, i) => {
-                const tps = computeTokensPerSec(messages, i);
+              {messages.map((msg) => {
                 return (
                   <div
                     key={msg.id}
@@ -315,8 +301,8 @@ export function ConversationsView({
                         {msg.tokens != null && (
                           <span>{msg.tokens.toLocaleString()} tokens</span>
                         )}
-                        {tps !== null && (
-                          <span>· {tps} tok/s</span>
+                        {msg.tokensPerSec != null && (
+                          <span>· {msg.tokensPerSec} tok/s</span>
                         )}
                         {msg.createdAt && !msg.id.startsWith("temp-") && (
                           <span>· {formatTime(msg.createdAt)}</span>

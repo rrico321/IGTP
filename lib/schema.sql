@@ -171,6 +171,8 @@ CREATE TABLE IF NOT EXISTS conversation_messages (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE conversation_messages ADD COLUMN IF NOT EXISTS tokens_per_sec REAL;
+
 CREATE INDEX IF NOT EXISTS idx_conv_messages_conv ON conversation_messages(conversation_id, created_at);
 
 ALTER TABLE gpu_jobs ADD COLUMN IF NOT EXISTS conversation_id TEXT REFERENCES conversations(id);

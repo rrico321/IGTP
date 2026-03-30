@@ -1013,6 +1013,7 @@ const CONV_MSG_COLS = `
   content,
   job_id          AS "jobId",
   tokens,
+  tokens_per_sec  AS "tokensPerSec",
   created_at      AS "createdAt"
 `;
 
@@ -1092,14 +1093,15 @@ export async function addConversationMessage(data: {
   content: string;
   jobId?: string;
   tokens?: number;
+  tokensPerSec?: number;
 }): Promise<ConversationMessage> {
   const sql = getSql();
   const id = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   const now = new Date().toISOString();
   const rows = await sql`
-    INSERT INTO conversation_messages (id, conversation_id, role, content, job_id, tokens, created_at)
+    INSERT INTO conversation_messages (id, conversation_id, role, content, job_id, tokens, tokens_per_sec, created_at)
     VALUES (${id}, ${data.conversationId}, ${data.role}, ${data.content},
-            ${data.jobId ?? null}, ${data.tokens ?? null}, ${now})
+            ${data.jobId ?? null}, ${data.tokens ?? null}, ${data.tokensPerSec ?? null}, ${now})
     RETURNING ${sql.unsafe(CONV_MSG_COLS)}
   `;
   return rows[0] as ConversationMessage;

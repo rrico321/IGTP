@@ -456,10 +456,17 @@ async function executeOllamaJob(job: GpuJob): Promise<void> {
       const outputText = job.conversationId
         ? (data.message?.content ?? "")
         : (data.response ?? "");
+      // Ollama provides eval_duration in nanoseconds
+      const evalCount = data.eval_count ?? 0;
+      const evalDurationNs = data.eval_duration ?? 0;
+      const tokensPerSec = evalDurationNs > 0
+        ? Math.round((evalCount / (evalDurationNs / 1e9)) * 10) / 10
+        : null;
       const tokens = {
         promptTokens: data.prompt_eval_count ?? 0,
-        completionTokens: data.eval_count ?? 0,
-        totalTokens: (data.prompt_eval_count ?? 0) + (data.eval_count ?? 0),
+        completionTokens: evalCount,
+        totalTokens: (data.prompt_eval_count ?? 0) + evalCount,
+        tokensPerSec,
       };
       await reportCompletion(job.id, "completed", 0, null, outputText, tokens);
     }

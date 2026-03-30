@@ -47,6 +47,7 @@ export async function POST(
         content: body.outputLog,
         jobId: id,
         tokens: totalTokens,
+        tokensPerSec: body.tokensPerSec ?? undefined,
       }).catch(() => {});
 
       await updateConversationTokens(updated.conversationId, totalTokens).catch(() => {});

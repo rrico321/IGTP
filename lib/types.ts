@@ -146,6 +146,7 @@ export interface ConversationMessage {
   content: string;
   jobId: string | null;
   tokens: number | null;
+  tokensPerSec: number | null;
   createdAt: string;
 }
 
