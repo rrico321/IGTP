@@ -3,7 +3,7 @@ import { requireUserId } from "@/lib/auth";
 import {
   getConversationById, getMessagesForConversation,
   addConversationMessage, createJob, updateConversationTokens,
-  updateConversationTitle,
+  updateConversationTitle, getRequestById,
 } from "@/lib/db";
 
 export async function GET(
@@ -35,6 +35,12 @@ export async function POST(
   const { content } = body;
   if (!content?.trim()) {
     return Response.json({ error: "content is required" }, { status: 400 });
+  }
+
+  // Check access hasn't expired
+  const accessRequest = await getRequestById(conversation.requestId);
+  if (accessRequest?.expiresAt && new Date(accessRequest.expiresAt) <= new Date()) {
+    return Response.json({ error: "Your access to this machine has expired. Submit a new request." }, { status: 403 });
   }
 
   // Get existing messages for context

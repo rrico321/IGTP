@@ -4,6 +4,7 @@ import { getMachineById, getUserById } from '@/lib/db'
 import { requireUserId } from '@/lib/auth'
 import { RequestForm } from './RequestForm'
 import { A1111SessionPanel } from './A1111SessionPanel'
+import { AccessTimer } from './AccessTimer'
 import { createRequestAction } from '../actions'
 import { MachineStatusBadge } from '@/app/components/StatusBadge'
 import { isTrusted, getApprovedRequest } from '@/lib/db'
@@ -81,6 +82,11 @@ export default async function BrowseMachineDetailPage({
           </div>
         </dl>
       </div>
+
+      {/* Access timer */}
+      {approvedRequest?.expiresAt && (
+        <AccessTimer expiresAt={approvedRequest.expiresAt} />
+      )}
 
       {/* A1111 Session */}
       {showA1111 && (

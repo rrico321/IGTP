@@ -12,11 +12,14 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "machineId, model, and input are required" }, { status: 400 });
   }
 
-  // Verify user has approved access to this machine
+  // Verify user has approved, non-expired access to this machine
   const requests = await getRequestsByRequester(userId);
-  const approved = requests.find((r) => r.machineId === machineId && r.status === "approved");
+  const approved = requests.find((r) =>
+    r.machineId === machineId && r.status === "approved" &&
+    (!r.expiresAt || new Date(r.expiresAt) > new Date())
+  );
   if (!approved) {
-    return Response.json({ error: "No approved access to this machine" }, { status: 403 });
+    return Response.json({ error: "No approved access to this machine (may have expired)" }, { status: 403 });
   }
 
   // Verify model exists on machine and is an embedding model
