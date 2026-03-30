@@ -34,8 +34,10 @@ export interface AccessRequest {
   requesterId: string;
   purpose: string;
   estimatedHours: number;
-  status: "pending" | "approved" | "denied" | "completed" | "cancelled";
+  status: "pending" | "approved" | "denied" | "completed" | "cancelled" | "expired";
   ownerNote?: string;
+  approvedAt: string | null;
+  expiresAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

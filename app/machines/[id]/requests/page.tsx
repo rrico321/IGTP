@@ -137,13 +137,22 @@ export default async function MachineRequestsPage({
                     <RequestStatusBadge status={request.status} />
                   </div>
                   <p className="text-sm text-muted-foreground line-clamp-2">{request.purpose}</p>
-                  <div className="text-xs text-muted-foreground/50 mt-2">
-                    ~{request.estimatedHours}h ·{' '}
-                    {new Date(request.createdAt).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}
+                  <div className="flex flex-wrap gap-x-3 text-xs text-muted-foreground/50 mt-2">
+                    <span>~{request.estimatedHours}h</span>
+                    <span>
+                      {new Date(request.createdAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </span>
+                    {request.expiresAt && request.status === 'approved' && (
+                      <span className={new Date(request.expiresAt) > new Date() ? 'text-green-400' : 'text-red-400'}>
+                        {new Date(request.expiresAt) > new Date()
+                          ? `Active until ${new Date(request.expiresAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+                          : 'Access expired'}
+                      </span>
+                    )}
                   </div>
                 </div>
               )

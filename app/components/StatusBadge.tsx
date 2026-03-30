@@ -13,6 +13,7 @@ const REQUEST_STATUS_CLASSES: Record<AccessRequest['status'], string> = {
   denied: 'bg-red-500/10 text-red-400 border border-red-500/20',
   completed: 'bg-blue-500/10 text-blue-400 border border-blue-500/20',
   cancelled: 'bg-zinc-800 text-zinc-500 border border-zinc-700',
+  expired: 'bg-orange-500/10 text-orange-400 border border-orange-500/20',
 }
 
 interface MachineStatusBadgeProps {

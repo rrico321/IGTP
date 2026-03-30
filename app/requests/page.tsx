@@ -68,7 +68,7 @@ export default async function RequestsPage() {
                 </p>
 
                 <div className="flex flex-wrap gap-x-4 text-xs text-muted-foreground/60">
-                  <span>~{request.estimatedHours}h estimated</span>
+                  <span>~{request.estimatedHours}h requested</span>
                   <span>
                     {new Date(request.createdAt).toLocaleDateString('en-US', {
                       month: 'short',
@@ -76,6 +76,13 @@ export default async function RequestsPage() {
                       year: 'numeric',
                     })}
                   </span>
+                  {request.expiresAt && request.status === 'approved' && (
+                    <span className={new Date(request.expiresAt) > new Date() ? 'text-green-400' : 'text-red-400'}>
+                      {new Date(request.expiresAt) > new Date()
+                        ? `Expires ${new Date(request.expiresAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+                        : 'Expired'}
+                    </span>
+                  )}
                 </div>
 
                 {request.ownerNote && (

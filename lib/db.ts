@@ -106,6 +106,8 @@ const REQUEST_COLS = `
   estimated_hours AS "estimatedHours",
   status,
   owner_note    AS "ownerNote",
+  approved_at   AS "approvedAt",
+  expires_at    AS "expiresAt",
   created_at    AS "createdAt",
   updated_at    AS "updatedAt"
 `;
@@ -139,9 +141,32 @@ export async function hasApprovedRequest(machineId: string, requesterId: string)
   const rows = await sql`
     SELECT 1 FROM access_requests
     WHERE machine_id = ${machineId} AND requester_id = ${requesterId} AND status = 'approved'
+      AND (expires_at IS NULL OR expires_at > NOW())
     LIMIT 1
   `;
   return rows.length > 0;
+}
+
+export async function getApprovedRequest(machineId: string, requesterId: string): Promise<AccessRequest | undefined> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT ${sql.unsafe(REQUEST_COLS)} FROM access_requests
+    WHERE machine_id = ${machineId} AND requester_id = ${requesterId} AND status = 'approved'
+      AND (expires_at IS NULL OR expires_at > NOW())
+    ORDER BY expires_at DESC NULLS FIRST
+    LIMIT 1
+  `;
+  return rows[0] as AccessRequest | undefined;
+}
+
+export async function expireOldRequests(): Promise<number> {
+  const sql = getSql();
+  const rows = await sql`
+    UPDATE access_requests SET status = 'expired', updated_at = NOW()
+    WHERE status = 'approved' AND expires_at IS NOT NULL AND expires_at <= NOW()
+    RETURNING id
+  `;
+  return rows.length;
 }
 
 export async function getRequestsByRequester(requesterId: string): Promise<AccessRequest[]> {
@@ -155,7 +180,7 @@ export async function getRequestsByRequester(requesterId: string): Promise<Acces
 }
 
 export async function createRequest(
-  data: Omit<AccessRequest, "id" | "status" | "createdAt" | "updatedAt">
+  data: Omit<AccessRequest, "id" | "status" | "createdAt" | "updatedAt" | "approvedAt" | "expiresAt">
 ): Promise<AccessRequest> {
   const sql = getSql();
   const id = `request-${Date.now()}`;
@@ -179,12 +204,24 @@ export async function updateRequest(
   const sql = getSql();
   const now = new Date().toISOString();
   const merged = { ...existing, ...updates };
+
+  // When approving, set approved_at and calculate expires_at
+  let approvedAt = existing.approvedAt;
+  let expiresAt = existing.expiresAt;
+  if (updates.status === "approved" && !existing.approvedAt) {
+    approvedAt = now;
+    const hours = existing.estimatedHours || 1;
+    expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+  }
+
   const rows = await sql`
     UPDATE access_requests SET
       purpose         = ${merged.purpose},
       estimated_hours = ${merged.estimatedHours},
       status          = ${merged.status},
       owner_note      = ${merged.ownerNote ?? null},
+      approved_at     = ${approvedAt ?? null},
+      expires_at      = ${expiresAt ?? null},
       updated_at      = ${now}
     WHERE id = ${id}
     RETURNING ${sql.unsafe(REQUEST_COLS)}

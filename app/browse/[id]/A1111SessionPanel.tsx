@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
-import { MonitorPlay, ExternalLink, Loader2, StopCircle } from "lucide-react";
+import { MonitorPlay, ExternalLink, Loader2, StopCircle, Clock } from "lucide-react";
 
 interface Session {
   id: string;
@@ -11,20 +11,56 @@ interface Session {
   expiresAt: string | null;
 }
 
+function formatTimeLeft(expiresAt: string): string {
+  const diff = new Date(expiresAt).getTime() - Date.now();
+  if (diff <= 0) return "Expired";
+  const hours = Math.floor(diff / 3600000);
+  const mins = Math.floor((diff % 3600000) / 60000);
+  if (hours > 0) return `${hours}h ${mins}m left`;
+  return `${mins}m left`;
+}
+
+function useCountdown(expiresAt: string | null) {
+  const [timeLeft, setTimeLeft] = useState(() => expiresAt ? formatTimeLeft(expiresAt) : null);
+  const [expired, setExpired] = useState(false);
+
+  useEffect(() => {
+    if (!expiresAt) return;
+    const update = () => {
+      const diff = new Date(expiresAt).getTime() - Date.now();
+      if (diff <= 0) {
+        setTimeLeft("Expired");
+        setExpired(true);
+      } else {
+        setTimeLeft(formatTimeLeft(expiresAt));
+        setExpired(false);
+      }
+    };
+    update();
+    const interval = setInterval(update, 30000); // Update every 30s
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+
+  return { timeLeft, expired };
+}
+
 export function A1111SessionPanel({
   machineId,
   machineName,
   isAvailable,
   hasApproval,
+  expiresAt,
 }: {
   machineId: string;
   machineName: string;
   isAvailable: boolean;
   hasApproval: boolean;
+  expiresAt: string | null;
 }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const { timeLeft, expired } = useCountdown(expiresAt);
 
   // Poll for session status when we have a pending/active session
   useEffect(() => {
@@ -76,16 +112,24 @@ export function A1111SessionPanel({
 
   return (
     <div className="bg-card border border-border rounded-xl p-6 ring-1 ring-foreground/5">
-      <div className="flex items-center gap-2 mb-3">
-        <MonitorPlay className="w-5 h-5 text-purple-400" />
-        <h2 className="text-base font-medium">Stable Diffusion (A1111)</h2>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <MonitorPlay className="w-5 h-5 text-purple-400" />
+          <h2 className="text-base font-medium">Stable Diffusion (A1111)</h2>
+        </div>
+        {timeLeft && !expired && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full">
+            <Clock className="w-3 h-3" />
+            {timeLeft}
+          </div>
+        )}
       </div>
       <p className="text-sm text-muted-foreground mb-4">
         Launch a remote session to use {machineName}&apos;s GPU for AI image generation.
         You&apos;ll get the full AUTOMATIC1111 web interface.
       </p>
 
-      {/* No active session */}
+      {/* No approval */}
       {!session && !hasApproval && (
         <div className="py-3 px-4 rounded-lg bg-muted/50 border border-border">
           <p className="text-sm text-muted-foreground">
@@ -95,7 +139,17 @@ export function A1111SessionPanel({
         </div>
       )}
 
-      {!session && hasApproval && (
+      {/* Approved but expired */}
+      {!session && hasApproval && expired && (
+        <div className="py-3 px-4 rounded-lg bg-red-500/10 border border-red-500/20">
+          <p className="text-sm text-red-400 font-medium">Access expired</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Your access window has ended. Submit a new request below to continue using this machine.
+          </p>
+        </div>
+      )}
+
+      {!session && hasApproval && !expired && (
         <>
           {isAvailable ? (
             <button

@@ -49,8 +49,11 @@ export async function PATCH(
     const title = status === "approved"
       ? `Request approved — ${machineName}`
       : `Request denied — ${machineName}`;
+    const expiryNote = updated?.expiresAt
+      ? ` Access expires ${new Date(updated.expiresAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.`
+      : "";
     const message = status === "approved"
-      ? `Your access request for ${machineName} has been approved.${ownerNote ? ` Owner note: ${ownerNote}` : ""}`
+      ? `Your access request for ${machineName} has been approved.${expiryNote}${ownerNote ? ` Owner note: ${ownerNote}` : ""}`
       : `Your access request for ${machineName} has been denied.${ownerNote ? ` Owner note: ${ownerNote}` : ""}`;
 
     // Create in-app notification (best-effort)

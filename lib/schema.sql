@@ -175,6 +175,10 @@ CREATE INDEX IF NOT EXISTS idx_conv_messages_conv ON conversation_messages(conve
 
 ALTER TABLE gpu_jobs ADD COLUMN IF NOT EXISTS conversation_id TEXT REFERENCES conversations(id);
 
+-- Access request expiry
+ALTER TABLE access_requests ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
+ALTER TABLE access_requests ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
+
 -- Notification extras
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS friend_request_id TEXT;
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS link_url TEXT;
