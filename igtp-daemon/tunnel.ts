@@ -190,10 +190,20 @@ export function stopTunnel(sessionId: string): boolean {
   if (!session) return false;
 
   try {
-    session.process.kill("SIGTERM");
-    setTimeout(() => {
-      try { session.process.kill("SIGKILL"); } catch {}
-    }, 5_000);
+    if (platform() === "win32") {
+      // Windows: use taskkill to force-kill the process tree
+      const pid = session.process.pid;
+      if (pid) {
+        try {
+          require("child_process").execSync(`taskkill /F /T /PID ${pid}`, { stdio: "pipe" });
+        } catch {}
+      }
+    } else {
+      session.process.kill("SIGTERM");
+      setTimeout(() => {
+        try { session.process.kill("SIGKILL"); } catch {}
+      }, 5_000);
+    }
   } catch {}
 
   activeSessions.delete(sessionId);

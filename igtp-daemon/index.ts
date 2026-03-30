@@ -166,21 +166,57 @@ async function uploadLog(logPath: string, jobId: string): Promise<string | null>
   }
 }
 
-// ─── Usage sampling (stub — replace with nvidia-smi / /proc reads) ────────────
+// ─── Usage sampling ───────────────────────────────────────────────────────────
 
 async function sampleUsage(): Promise<{ gpuUtilPct: number; vramUsedGb: number; cpuUtilPct: number; ramUsedGb: number }> {
-  return {
-    gpuUtilPct: 0,
-    vramUsedGb: 0,
-    cpuUtilPct: 0,
-    ramUsedGb: 0,
-  };
+  let gpuUtilPct = 0, vramUsedGb = 0;
+
+  // Try nvidia-smi for GPU stats
+  try {
+    const nvCmd = IS_WIN ? "nvidia-smi" : "nvidia-smi";
+    const result = execSync(
+      `${nvCmd} --query-gpu=utilization.gpu,memory.used --format=csv,noheader,nounits`,
+      { encoding: "utf-8", timeout: 5000 }
+    ).trim();
+    const [util, mem] = result.split(",").map((s) => parseFloat(s.trim()));
+    if (!isNaN(util)) gpuUtilPct = util;
+    if (!isNaN(mem)) vramUsedGb = Math.round(mem / 1024 * 100) / 100;
+  } catch {}
+
+  // CPU/RAM from Node.js
+  const cpus = require("os").cpus();
+  const cpuUtilPct = Math.round(
+    cpus.reduce((sum: number, c: any) => {
+      const total = Object.values(c.times as Record<string, number>).reduce((a, b) => a + b, 0);
+      return sum + (1 - (c.times as any).idle / total) * 100;
+    }, 0) / cpus.length
+  );
+  const totalMem = require("os").totalmem();
+  const freeMem = require("os").freemem();
+  const ramUsedGb = Math.round((totalMem - freeMem) / 1073741824 * 100) / 100;
+
+  return { gpuUtilPct, vramUsedGb, cpuUtilPct, ramUsedGb };
 }
 
 // ─── Heartbeat ─────────────────────────────────────────────────────────────
 
 async function sendHeartbeat(): Promise<void> {
   try {
+    // Check actual A1111 availability
+    const a1111Running = A1111_ENABLED ? await isA1111Running() : false;
+    const a1111Available = a1111Running && getActiveSessionCount() < A1111_MAX_SESSIONS;
+
+    // Clean up dead tunnel processes
+    for (const session of getActiveSessions()) {
+      if (session.process.killed || session.process.exitCode !== null) {
+        console.log(`[tunnel] Cleaning up dead tunnel: ${session.sessionId}`);
+        stopTunnel(session.sessionId);
+        await apiPost(`/api/sessions/${session.sessionId}/tunnel`, {
+          tunnelUrl: null, status: "ended", error: "Tunnel process died",
+        }).catch(() => {});
+      }
+    }
+
     const activeTunnels = getActiveSessions().map((s) => ({
       sessionId: s.sessionId,
       tunnelUrl: s.tunnelUrl,
@@ -192,12 +228,14 @@ async function sendHeartbeat(): Promise<void> {
       headers: HEADERS,
       body: JSON.stringify({
         a1111Enabled: A1111_ENABLED,
-        a1111Available: A1111_ENABLED && getActiveSessionCount() < A1111_MAX_SESSIONS,
+        a1111Available,
         activeTunnels,
       }),
     });
     if (!res.ok) {
       console.error(`[igtp-daemon] Heartbeat failed: ${res.status}`);
+    } else {
+      console.log(`[igtp-daemon] Heartbeat OK (a1111: ${A1111_ENABLED}, available: ${a1111Available}, tunnels: ${activeTunnels.length})`);
     }
   } catch (err) {
     console.error("[igtp-daemon] Heartbeat error:", err);
@@ -324,6 +362,8 @@ async function handleA1111SessionStop(sessionId: string): Promise<void> {
 
 // ─── Session poll (checks for pending A1111 session requests) ────────────────
 
+const inFlightSessions = new Set<string>();
+
 async function pollSessions(): Promise<void> {
   if (!A1111_ENABLED) return;
 
@@ -332,8 +372,11 @@ async function pollSessions(): Promise<void> {
     const pending = data.sessions?.filter((s: { status: string }) => s.status === "pending") ?? [];
 
     for (const session of pending) {
+      if (inFlightSessions.has(session.id)) continue; // Already being processed
+      inFlightSessions.add(session.id);
       console.log(`[a1111] Processing session request: ${session.id}`);
       const result = await handleA1111SessionRequest(session.id);
+      inFlightSessions.delete(session.id);
 
       if ("error" in result) {
         console.error(`[a1111] Session ${session.id} failed: ${result.error}`);
@@ -567,24 +610,24 @@ setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
 setInterval(syncModels, HEARTBEAT_INTERVAL_MS);
 if (A1111_ENABLED) setInterval(pollSessions, POLL_INTERVAL_MS);
 
-// Graceful shutdown — stop all tunnels
-process.on("SIGINT", () => {
+// Graceful shutdown — stop all tunnels and notify API
+async function shutdown() {
   console.log("\n[igtp-daemon] Shutting down...");
   for (const session of getActiveSessions()) {
+    await apiPost(`/api/sessions/${session.sessionId}/tunnel`, {
+      tunnelUrl: null, status: "ended",
+    }).catch(() => {});
     stopTunnel(session.sessionId);
   }
   if (a1111Process) {
-    try { a1111Process.kill("SIGTERM"); } catch {}
+    try { a1111Process.kill(); } catch {}
   }
   process.exit(0);
-});
+}
 
-process.on("SIGTERM", () => {
-  for (const session of getActiveSessions()) {
-    stopTunnel(session.sessionId);
-  }
-  if (a1111Process) {
-    try { a1111Process.kill("SIGTERM"); } catch {}
-  }
-  process.exit(0);
-});
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
+// Windows: handle Ctrl+C in console
+if (IS_WIN) {
+  process.on("SIGHUP", shutdown);
+}
