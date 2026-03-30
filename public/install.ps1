@@ -47,6 +47,7 @@ $GH_RAW = "https://raw.githubusercontent.com/rrico321/IGTP/main/igtp-daemon"
 Invoke-WebRequest -Uri "$GH_RAW/index.ts" -OutFile "$IGTP_DIR\daemon\index.ts"
 Invoke-WebRequest -Uri "$GH_RAW/tunnel.ts" -OutFile "$IGTP_DIR\daemon\tunnel.ts"
 Invoke-WebRequest -Uri "$GH_RAW/package.json" -OutFile "$IGTP_DIR\daemon\package.json"
+Invoke-WebRequest -Uri "$GH_RAW/tray.ps1" -OutFile "$IGTP_DIR\tray.ps1"
 
 # ─── Install dependencies ────────────────────────────────────────────────
 Write-Host "Installing dependencies..." -ForegroundColor Blue
@@ -366,14 +367,15 @@ Write-Host "Step 4: Auto-start" -ForegroundColor White
 Write-Host ""
 $autostart = Read-Host "Start daemon automatically when you log in? (y/n)"
 if ($autostart -eq "y") {
-    schtasks /create /tn "IGTP Daemon" /tr "`"$IGTP_DIR\igtp.bat`" start" /sc onlogon /rl limited /f | Out-Null
-    Write-Host "[OK] Auto-start enabled" -ForegroundColor Green
+    $trayCmd = "powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$IGTP_DIR\tray.ps1`""
+    schtasks /create /tn "IGTP Daemon" /tr "$trayCmd" /sc onlogon /rl limited /f | Out-Null
+    Write-Host "[OK] Auto-start enabled (tray app)" -ForegroundColor Green
 }
 
 # ─── Start now ───────────────────────────────────────────────────────────
 Write-Host ""
-Write-Host "Starting daemon..." -ForegroundColor Blue
-& "$IGTP_DIR\igtp.bat" start
+Write-Host "Starting daemon (tray app)..." -ForegroundColor Blue
+Start-Process powershell.exe -ArgumentList "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$IGTP_DIR\tray.ps1`"" -WindowStyle Hidden
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Green
