@@ -22,26 +22,34 @@ export async function createRequestAction(
 
   const purpose = (formData.get('purpose') as string)?.trim()
   const estimatedHours = Number(formData.get('estimatedHours'))
+  const isExtension = formData.get('isExtension') === 'true'
 
   if (!purpose) return { error: 'Purpose is required.' }
   if (!estimatedHours || estimatedHours < 1) {
-    return { error: 'Estimated hours must be at least 1.' }
+    return { error: 'Hours must be at least 1.' }
   }
 
   const accessRequest = await createRequest({
     machineId,
     requesterId: userId,
-    purpose,
+    purpose: isExtension ? `[Extension] ${purpose}` : purpose,
     estimatedHours,
   })
 
-  // Notify the machine owner about the new request
+  // Notify the machine owner
   const requester = await getUserById(userId)
+  const notifTitle = isExtension
+    ? `Extension request — ${machine.name}`
+    : `New request — ${machine.name}`
+  const notifMessage = isExtension
+    ? `${requester?.name ?? "Someone"} wants ${estimatedHours} more hours on ${machine.name}: "${purpose}"`
+    : `${requester?.name ?? "Someone"} wants to use ${machine.name} for ${estimatedHours}h: "${purpose}"`
+
   createNotification({
     userId: machine.ownerId,
     type: "request_submitted",
-    title: `New request — ${machine.name}`,
-    message: `${requester?.name ?? "Someone"} wants to use ${machine.name} for ${estimatedHours}h: "${purpose}"`,
+    title: notifTitle,
+    message: notifMessage,
     requestId: accessRequest.id,
     linkUrl: `/machines/${machineId}/requests`,
   }).catch(() => {})

@@ -99,11 +99,13 @@ export default async function BrowseMachineDetailPage({
         />
       )}
 
-      {/* Request access */}
+      {/* Request / extend access */}
       {canRequest && (
         <div className="bg-card border border-border rounded-xl p-6 ring-1 ring-foreground/5">
-          <h2 className="text-base font-medium mb-4">Request Access</h2>
-          <RequestForm action={action} />
+          <h2 className="text-base font-medium mb-4">
+            {hasApproval ? 'Extend Access' : 'Request Access'}
+          </h2>
+          <RequestForm action={action} isExtension={hasApproval} />
         </div>
       )}
 

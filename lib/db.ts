@@ -211,7 +211,26 @@ export async function updateRequest(
   if (updates.status === "approved" && !existing.approvedAt) {
     approvedAt = now;
     const hours = existing.estimatedHours || 1;
-    expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+    const isExtension = existing.purpose.startsWith("[Extension]");
+
+    if (isExtension) {
+      // Find existing approved request for same user+machine and extend it
+      const existingApproved = await getApprovedRequest(existing.machineId, existing.requesterId);
+      if (existingApproved?.expiresAt) {
+        // Add hours to the existing expiry (or from now if already expired)
+        const base = Math.max(new Date(existingApproved.expiresAt).getTime(), Date.now());
+        const newExpiry = new Date(base + hours * 60 * 60 * 1000).toISOString();
+        // Update the original approved request's expiry
+        await sql`
+          UPDATE access_requests SET expires_at = ${newExpiry}, updated_at = ${now}
+          WHERE id = ${existingApproved.id}
+        `;
+      }
+      // Mark extension request as completed (it extended the original)
+      expiresAt = null;
+    } else {
+      expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+    }
   }
 
   const rows = await sql`
