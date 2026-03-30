@@ -85,7 +85,11 @@ export default async function BrowseMachineDetailPage({
 
       {/* Access timer */}
       {approvedRequest?.expiresAt && (
-        <AccessTimer expiresAt={approvedRequest.expiresAt} />
+        <AccessTimer
+          expiresAt={approvedRequest.expiresAt}
+          requestId={approvedRequest.id}
+          machineId={machine.id}
+        />
       )}
 
       {/* A1111 Session */}
