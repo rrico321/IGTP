@@ -268,6 +268,7 @@ if "%1"=="start" goto start
 if "%1"=="stop" goto stop
 if "%1"=="status" goto status
 if "%1"=="logs" goto logs
+if "%1"=="update" goto update
 if "%1"=="kick" goto kick
 if "%1"=="autostart" goto autostart
 if "%1"=="uninstall" goto uninstall
@@ -298,6 +299,17 @@ goto end
 
 :logs
 type "%LOG_FILE%"
+goto end
+
+:update
+echo Updating IGTP daemon...
+set GH_RAW=https://raw.githubusercontent.com/rrico321/IGTP/main/igtp-daemon
+curl -fsSL "%GH_RAW%/index.ts" -o "%IGTP_DIR%\daemon\index.ts"
+curl -fsSL "%GH_RAW%/tunnel.ts" -o "%IGTP_DIR%\daemon\tunnel.ts" 2>nul
+curl -fsSL "%GH_RAW%/package.json" -o "%IGTP_DIR%\daemon\package.json"
+cd /d "%IGTP_DIR%\daemon"
+npm install --silent 2>nul
+echo Daemon updated. Restart with: igtp stop ^&^& igtp start
 goto end
 
 :kick
@@ -343,6 +355,7 @@ echo   igtp start           Start the daemon
 echo   igtp stop            Stop the daemon
 echo   igtp status          Show daemon status and config
 echo   igtp logs            Show daemon log output
+echo   igtp update          Update daemon to latest version
 echo   igtp kick            Kill all tunnels and disconnect remote users
 echo   igtp autostart on    Start daemon automatically on login
 echo   igtp autostart off   Disable auto-start
@@ -387,8 +400,10 @@ Write-Host ""
 Write-Host "  Useful commands:"
 Write-Host "    igtp status       - Check if daemon is running"
 Write-Host "    igtp logs         - See what's happening"
+Write-Host "    igtp update       - Update to latest version"
 Write-Host "    igtp stop         - Pause sharing"
 Write-Host "    igtp start        - Resume sharing"
+Write-Host "    igtp kick         - Disconnect all remote users"
 Write-Host "    igtp uninstall    - Remove everything"
 Write-Host ""
 if ($A1111_ENABLED -eq "true") {

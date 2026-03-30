@@ -360,6 +360,27 @@ UNIT_EOF
         ;;
     esac
     ;;
+  update)
+    echo "Updating IGTP daemon..."
+    GH_RAW="https://raw.githubusercontent.com/rrico321/IGTP/main/igtp-daemon"
+    curl -fsSL "$GH_RAW/index.ts" -o "$IGTP_DIR/daemon/index.ts"
+    curl -fsSL "$GH_RAW/tunnel.ts" -o "$IGTP_DIR/daemon/tunnel.ts" 2>/dev/null || true
+    curl -fsSL "$GH_RAW/package.json" -o "$IGTP_DIR/daemon/package.json"
+    cd "$IGTP_DIR/daemon"
+    npm install --silent 2>/dev/null
+    echo "Daemon code updated. Restarting..."
+    "$0" stop 2>/dev/null || true
+    "$0" start
+    echo "Update complete!"
+    ;;
+  kick)
+    load_env
+    echo "Kicking all connected users..."
+    curl -s -X POST -H "Authorization: Bearer ${IGTP_API_KEY:-}" \
+      "${IGTP_API_URL:-https://igtp.vercel.app}/api/machines/${IGTP_MACHINE_ID:-}/kick"
+    echo ""
+    echo "Done."
+    ;;
   uninstall)
     echo "This will remove IGTP daemon and all config from this machine."
     read -rp "Are you sure? (y/n): " confirm
@@ -381,6 +402,8 @@ UNIT_EOF
     echo "  igtp stop            Stop the daemon"
     echo "  igtp status          Show daemon status and config"
     echo "  igtp logs            Follow the daemon log output"
+    echo "  igtp update          Update daemon to latest version"
+    echo "  igtp kick            Disconnect all remote users"
     echo "  igtp autostart on    Start daemon automatically on boot"
     echo "  igtp autostart off   Disable auto-start"
     echo "  igtp uninstall       Remove IGTP daemon from this machine"
@@ -434,8 +457,10 @@ echo ""
 echo "  Useful commands:"
 echo "    igtp status       — Check if daemon is running"
 echo "    igtp logs         — See what's happening"
+echo "    igtp update       — Update to latest version"
 echo "    igtp stop         — Pause sharing"
 echo "    igtp start        — Resume sharing"
+echo "    igtp kick         — Disconnect all remote users"
 echo "    igtp uninstall    — Remove everything"
 echo ""
 echo -e "  Dashboard: ${BLUE}${API_URL}${NC}"
