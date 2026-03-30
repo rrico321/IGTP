@@ -22,12 +22,20 @@ export async function PATCH(
   }
 
   const machine = await getMachineById(existing.machineId);
-  if (!machine || machine.ownerId !== userId) {
+  const isOwner = machine && machine.ownerId === userId;
+  const isRequester = existing.requesterId === userId;
+
+  if (!isOwner && !isRequester) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await request.json();
   const { status, ownerNote } = body;
+
+  // Requester can only complete/cancel their own requests
+  if (isRequester && !isOwner && status && !["completed", "cancelled"].includes(status)) {
+    return Response.json({ error: "You can only complete or cancel your own requests" }, { status: 403 });
+  }
 
   const validStatuses = ["pending", "approved", "denied", "completed", "cancelled"];
   if (status && !validStatuses.includes(status)) {
@@ -41,7 +49,7 @@ export async function PATCH(
   const updated = await updateRequest(id, updates);
 
   // Fire notifications when request moves to a terminal status
-  if (status === "approved" || status === "denied") {
+  if ((status === "approved" || status === "denied") && machine) {
     const requester = await getUserById(existing.requesterId);
 
     const machineName = machine.name;

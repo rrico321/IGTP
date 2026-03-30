@@ -222,6 +222,12 @@ CREATE TABLE IF NOT EXISTS a1111_sessions (
 CREATE INDEX IF NOT EXISTS idx_a1111_sessions_machine ON a1111_sessions(machine_id, status);
 CREATE INDEX IF NOT EXISTS idx_a1111_sessions_requester ON a1111_sessions(requester_id);
 
+-- Backfill: set expiry on approved requests that have no expires_at
+UPDATE access_requests
+SET expires_at = approved_at + INTERVAL '24 hours',
+    approved_at = COALESCE(approved_at, updated_at)
+WHERE status = 'approved' AND expires_at IS NULL;
+
 -- Clean up stale sessions (pending/active with no tunnel older than 5 min)
 UPDATE a1111_sessions SET status = 'ended', updated_at = NOW()
 WHERE status IN ('pending', 'active', 'failed') AND tunnel_url IS NULL
