@@ -1,8 +1,9 @@
 import Link from 'next/link'
-import { getMachines, getUsers, getTrustedUserIds } from '@/lib/db'
+import { getMachines, getUsers, getTrustedUserIds, getApprovedRequest } from '@/lib/db'
 import { requireUserId } from '@/lib/auth'
 import { BrowseFilters } from './BrowseFilters'
 import { MachineStatusBadge } from '@/app/components/StatusBadge'
+import { ConnectionBadge } from '@/app/components/ConnectionBadge'
 import type { User } from '@/lib/types'
 
 export default async function BrowsePage({
@@ -49,6 +50,14 @@ export default async function BrowsePage({
   }
 
   const hasFilters = !!(q || gpuModel || minVram || showAll === '1')
+
+  // Batch fetch connection status for all visible machines
+  const approvedRequests = await Promise.all(
+    machines.map((m) => getApprovedRequest(m.id, userId))
+  )
+  const connectionMap = new Map<string, string | null>(
+    machines.map((m, i) => [m.id, approvedRequests[i]?.expiresAt ?? null])
+  )
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -99,6 +108,7 @@ export default async function BrowsePage({
                     <div className="flex items-center gap-2.5 mb-1 flex-wrap">
                       <span className="font-medium text-sm text-foreground">{machine.name}</span>
                       <MachineStatusBadge status={machine.status} />
+                      <ConnectionBadge expiresAt={connectionMap.get(machine.id) ?? null} />
                     </div>
                     {machine.description && (
                       <p className="text-sm text-muted-foreground mb-1.5 line-clamp-1">
