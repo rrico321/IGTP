@@ -169,6 +169,25 @@ export async function expireOldRequests(): Promise<number> {
   return rows.length;
 }
 
+export async function getConnectedUsersForMachine(machineId: string): Promise<Array<AccessRequest & { requesterName: string; requesterEmail: string }>> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT
+      ar.id, ar.machine_id AS "machineId", ar.requester_id AS "requesterId",
+      ar.purpose, ar.estimated_hours AS "estimatedHours", ar.status,
+      ar.owner_note AS "ownerNote", ar.approved_at AS "approvedAt",
+      ar.expires_at AS "expiresAt", ar.created_at AS "createdAt", ar.updated_at AS "updatedAt",
+      u.name AS "requesterName", u.email AS "requesterEmail"
+    FROM access_requests ar
+    JOIN users u ON u.id = ar.requester_id
+    WHERE ar.machine_id = ${machineId}
+      AND ar.status = 'approved'
+      AND (ar.expires_at IS NULL OR ar.expires_at > NOW())
+    ORDER BY ar.expires_at ASC NULLS LAST
+  `;
+  return rows as any[];
+}
+
 export async function getRequestsByRequester(requesterId: string): Promise<AccessRequest[]> {
   const sql = getSql();
   const rows = await sql`
