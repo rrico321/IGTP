@@ -1,4 +1,3 @@
-import { requireUserId } from '@/lib/auth'
 import { HelpView } from './HelpView'
 
 export const metadata = {
@@ -6,7 +5,6 @@ export const metadata = {
   description: 'Everything you need to know about using IGTP',
 }
 
-export default async function HelpPage() {
-  await requireUserId()
+export default function HelpPage() {
   return <HelpView />
 }

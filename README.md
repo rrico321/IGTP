@@ -88,8 +88,9 @@ The installer will walk you through everything:
 3. It asks you to paste the API key you copied earlier
 4. It asks you to name your computer (like "Rob's Mac" or "Gaming PC")
 5. It registers your computer on the website
-6. It asks if you want it to start automatically when you turn on your computer (say yes)
-7. It starts running
+6. It asks if you want to enable **A1111 image generation** (see below)
+7. It asks if you want it to start automatically when you turn on your computer (say yes)
+8. It starts running
 
 When it's done, you'll see a success message. Your computer is now sharing its AI models with your network.
 
@@ -103,9 +104,10 @@ When it's done, you'll see a success message. Your computer is now sharing its A
 #### Step 5: Approve requests
 
 When a friend requests to use your computer:
-1. You'll see a notification on the website
+1. You'll see a notification on the website (the bell icon updates in real time)
 2. Go to **My Machines** > click your machine > click **Requests**
-3. Click **Approve** to give them access
+3. Click **Approve** to give them access — you can set a time limit (e.g. 24 hours)
+4. When the time runs out, their access expires automatically. They can request an extension if they need more time.
 
 ---
 
@@ -122,6 +124,35 @@ Once you have access to a machine, click **Chat** in the top menu. This opens a 
 Each conversation remembers what you've talked about, so you can ask follow-up questions and the AI will understand the context.
 
 **Token counter:** You'll see a token count next to each conversation. Tokens are how AI models measure usage — roughly 1 token equals about 3/4 of a word. The machine owner can see how many tokens you've used (this is useful if they want to charge for usage later).
+
+---
+
+## AI Image Generation (A1111)
+
+If the machine you're using has [AUTOMATIC1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui) (A1111) installed, you can use it for AI image generation with Stable Diffusion — right from your browser.
+
+### How it works
+
+1. On the **Browse** page, machines with A1111 enabled show an "A1111" badge
+2. Click the machine and then **Start A1111 Session**
+3. The daemon creates a secure tunnel to the machine's A1111 instance
+4. You get a private URL that opens A1111's full web interface in your browser
+5. Generate images using the machine's GPU — all the usual A1111 features work (txt2img, img2img, ControlNet, etc.)
+6. When you're done, click **Stop Session** to free up the GPU for others
+
+Sessions have a time limit (default 2 hours) set by the machine owner. Only one session runs at a time per machine.
+
+### For machine owners
+
+The installer asks if you want to enable A1111. If you said no during setup, you can enable it later by editing `~/.igtp/.env` (or `%USERPROFILE%\.igtp\.env` on Windows):
+
+```env
+A1111_ENABLED=true
+A1111_URL=http://localhost:7860
+A1111_SESSION_MAX_MINS=120
+```
+
+The daemon uses [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) (`cloudflared`) to securely expose your local A1111 instance without opening any ports. The installer will help you set up `cloudflared` if needed.
 
 ---
 
@@ -178,6 +209,7 @@ The daemon is the helper program running on the shared computer. After installat
 | `igtp start` | Start the daemon (begin sharing your computer) |
 | `igtp stop` | Stop the daemon (pause sharing — nobody can use your machine) |
 | `igtp logs` | Show what the daemon is doing (useful for troubleshooting) |
+| `igtp kick` | Kill all active tunnels and disconnect all remote users immediately |
 | `igtp autostart on` | Make the daemon start automatically when you log in to your computer |
 | `igtp autostart off` | Stop the daemon from starting automatically |
 | `igtp uninstall` | Completely remove the daemon and all its files from your computer |
@@ -186,13 +218,15 @@ The daemon is the helper program running on the shared computer. After installat
 
 ---
 
-## The Trust Network
+## The Trust & Friend System
 
 IGTP only lets you see and use machines from people you trust. This keeps things safe.
 
 - **When you invite someone**, they automatically become part of your trust network (and you become part of theirs)
+- **Friend requests** — You can also send a friend request to someone already on IGTP. If they accept, you're added to each other's trust networks. No invite link needed.
 - **Trust goes one way** — just because you trust someone doesn't mean they have to trust you back
 - **You always approve access** — even if someone can see your machine, they still need your permission before they can use it
+- **Time-limited access** — when you approve a request, access expires after a set time (e.g. 24 hours). Users can request extensions when their access is about to run out.
 - **You can remove trust** — Go to Settings > Trust to manage who's in your network
 
 ---
@@ -202,14 +236,20 @@ IGTP only lets you see and use machines from people you trust. This keeps things
 | Feature | Description |
 |---------|-------------|
 | AI Chat | Chat with Ollama models in a familiar interface, with conversation history |
+| AI Image Generation | Start A1111/Stable Diffusion sessions on remote machines with secure tunneling |
 | Ollama Integration | Automatically detects and syncs available AI models |
 | Token Tracking | Every request tracks token usage for auditing and future billing |
 | API Access | Programmatic access for chat and embeddings via REST API |
 | Machine Registry | Register your computer with hardware specs auto-detected |
 | Trust Network | Control exactly who can see and use your machines |
+| Friend Requests | Send friend requests to add people to your trust network without an invite |
 | Invite System | Bring friends into your network via email |
-| Access Requests | Approve or deny requests with notes |
-| Notifications | Get notified when someone requests your machine |
+| Time-Limited Access | Approved requests expire after a set duration; users can request extensions |
+| Connection Badges | See who's currently connected to your machine at a glance |
+| Connected Users Panel | View all users connected to your machine and kick them if needed |
+| Disconnect Button | Users can disconnect themselves when they're done (complete/cancel requests) |
+| Real-Time Notifications | SSE-powered live updates for machine status and notification badges |
+| Notifications | Get notified when someone requests your machine, sends a friend request, or approves your access |
 | Auto-Start | Daemon starts when your computer boots up |
 | Cross-Platform | Works on Mac, Linux, and Windows |
 
@@ -223,11 +263,14 @@ No — you only need a powerful computer if you want to *share* AI models. If yo
 **What is Ollama?**
 Ollama is free software that lets you run AI models on your own computer. Think of it as the engine that powers the AI. IGTP connects that engine to the internet so your friends can use it too. Download it at [ollama.com](https://ollama.com).
 
+**What is A1111?**
+AUTOMATIC1111 (A1111) is a popular web interface for generating AI images using Stable Diffusion. If a machine owner has it installed and enabled, you can start a remote session to use it through your browser. The daemon creates a secure tunnel so you get the full A1111 experience without any setup on your end.
+
 **What is a daemon?**
 A daemon (pronounced "dee-mon") is a program that runs quietly in the background on your computer. You don't see a window for it — it just works behind the scenes. The IGTP daemon connects your computer to the IGTP website so friends can use your AI models. You can stop it anytime with `igtp stop`.
 
 **Is it safe?**
-Yes. The daemon only runs AI prompts through Ollama — it cannot access your files, install software, or do anything else on your computer. You also control exactly who can use your machine through the trust and approval system.
+Yes. The daemon only runs AI prompts through Ollama — it cannot access your files, install software, or do anything else on your computer. You also control exactly who can use your machine through the trust and approval system. A1111 sessions use encrypted Cloudflare Tunnels — no ports are opened on your machine.
 
 **How much does it cost?**
 IGTP is free. The only cost is the electricity to run your computer and the internet bandwidth. The website is hosted on Vercel's free tier.
@@ -239,7 +282,10 @@ Currently, the machine owner can see job records (prompts and responses) in the 
 The daemon stops when your computer sleeps or shuts down. When you open it again, the daemon restarts automatically (if you enabled auto-start). Your friends won't be able to use your machine while it's off.
 
 **Can multiple people use my machine at the same time?**
-Currently, the daemon handles one request at a time. If multiple people send prompts, they'll be queued and processed one after another.
+For AI chat, the daemon handles one request at a time. If multiple people send prompts, they'll be queued and processed one after another. For A1111 image generation, only one session runs at a time by default (configurable via `A1111_MAX_SESSIONS`).
+
+**What happens when my access expires?**
+You'll see a countdown timer showing how much time you have left. When access expires, you can request an extension from the machine owner. Your conversations are saved — you just need renewed access to keep chatting.
 
 ---
 
@@ -257,9 +303,12 @@ Currently, the daemon handles one request at a time. If multiple people send pro
 | Database | Neon Serverless Postgres |
 | Styling | Tailwind CSS 4 + shadcn/ui |
 | AI Runtime | Ollama (local) |
+| Image Gen | AUTOMATIC1111 (local, optional) |
+| Tunneling | Cloudflare Tunnel (cloudflared) |
 | Email | Resend |
 | Monitoring | Sentry |
 | Analytics | Vercel Analytics |
+| Real-Time | Server-Sent Events (SSE) |
 
 ### Architecture
 
@@ -269,8 +318,10 @@ Currently, the daemon handles one request at a time. If multiple people send pro
 │                                  │     │                                  │
 │  Users, trust network, requests  │◄───►│  Syncs Ollama models every 60s  │
 │  Conversations, job queue        │     │  Polls for jobs every 10s       │
-│  API (chat, embed, CRUD)         │     │  Sends heartbeats every 60s    │
-│  Token tracking & auditing       │     │  Calls Ollama API locally       │
+│  A1111 session management        │     │  Polls for A1111 sessions       │
+│  SSE live updates                │     │  Sends heartbeats every 60s    │
+│  API (chat, embed, CRUD)         │     │  Calls Ollama API locally       │
+│  Token tracking & auditing       │     │  Manages cloudflared tunnels    │
 └──────────────────────────────────┘     └──────────────────────────────────┘
 ```
 
@@ -278,37 +329,117 @@ Currently, the daemon handles one request at a time. If multiple people send pro
 
 | Table | Purpose |
 |-------|---------|
-| users | User accounts |
-| machines | Registered computers with hardware specs |
+| users | User accounts (with password hashes) |
+| machines | Registered computers with hardware specs and A1111 status |
 | machine_models | Ollama models synced from each machine |
-| access_requests | Requests from users to use a machine |
-| gpu_jobs | Individual AI requests (for auditing/billing) |
+| access_requests | Requests from users to use a machine (with expiry timestamps) |
+| gpu_jobs | Individual AI requests with token counts (for auditing/billing) |
+| job_usage_snapshots | Periodic GPU/CPU/RAM usage samples during job execution |
 | conversations | Chat conversation threads |
 | conversation_messages | Messages within conversations |
 | trust_connections | Directional trust graph |
+| friend_requests | Friend requests between users (pending/accepted/denied) |
 | invites | Email invite tokens |
-| notifications | In-app notifications |
+| notifications | In-app notifications (includes friend request notifications) |
 | api_keys | Personal API keys for daemon and API access |
+| a1111_sessions | A1111 image generation sessions with tunnel URLs and expiry |
 
 ### API Reference
+
+#### AI / Inference
 
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/api/ollama/chat` | Submit a chat prompt (API key auth) |
 | `POST` | `/api/ollama/embed` | Submit an embedding request (API key auth) |
+
+#### Machines
+
+| Method | Path | Description |
+|--------|------|-------------|
 | `GET` | `/api/machines` | List all machines |
 | `POST` | `/api/machines` | Register a machine (auth required) |
+| `GET` | `/api/machines/:id` | Get machine details |
+| `PATCH` | `/api/machines/:id` | Update machine (owner only) |
+| `DELETE` | `/api/machines/:id` | Delete machine (owner only) |
 | `GET` | `/api/machines/:id/models` | List Ollama models on a machine |
 | `POST` | `/api/machines/:id/models` | Sync models from daemon |
-| `POST` | `/api/machines/:id/heartbeat` | Daemon heartbeat |
+| `POST` | `/api/machines/:id/heartbeat` | Daemon heartbeat (reports A1111 status) |
+| `POST` | `/api/machines/:id/kick` | Kill all active sessions on a machine (owner only) |
+| `GET` | `/api/machines/:id/requests` | List access requests for a machine |
+| `POST` | `/api/machines/:id/requests` | Submit an access request |
+
+#### A1111 Sessions
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/machines/:id/sessions` | List A1111 sessions for a machine |
+| `POST` | `/api/machines/:id/sessions` | Request a new A1111 session |
+| `POST` | `/api/sessions/:id/stop` | Stop an active session |
+| `POST` | `/api/sessions/:id/tunnel` | Daemon reports tunnel URL or status |
+| `GET` | `/api/sessions/:id/tunnel` | Check session/tunnel status |
+
+#### Access Requests
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/requests` | List requests by requester |
+| `PATCH` | `/api/requests/:id` | Approve/deny/complete/cancel a request |
+
+#### Conversations
+
+| Method | Path | Description |
+|--------|------|-------------|
 | `GET/POST` | `/api/conversations` | List/create conversations |
 | `GET/POST` | `/api/conversations/:id/messages` | List/send messages |
-| `POST` | `/api/requests` | Submit access request |
-| `PATCH` | `/api/requests/:id` | Approve/deny request |
-| `POST` | `/api/jobs/dispatch` | Get next job for a machine |
-| `POST` | `/api/jobs/:id/snapshot` | Report job completion + tokens |
+| `DELETE` | `/api/conversations/:id` | Delete a conversation |
+
+#### Jobs
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/jobs` | List jobs |
+| `GET` | `/api/jobs/:id` | Get job details/result |
+| `POST` | `/api/jobs/dispatch` | Get next queued job for a machine |
+| `POST` | `/api/jobs/:id/snapshot` | Report job progress, completion + tokens |
+
+#### Trust & Friends
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/trust` | List your trust connections |
+| `POST` | `/api/trust` | Add a trust connection |
+| `DELETE` | `/api/trust/:id` | Remove a trust connection |
+| `GET` | `/api/friend-requests` | List pending friend requests |
+| `POST` | `/api/friend-requests` | Send a friend request |
+| `PATCH` | `/api/friend-requests/:id` | Accept or deny a friend request |
+
+#### Other
+
+| Method | Path | Description |
+|--------|------|-------------|
 | `GET/POST` | `/api/api-keys` | Manage API keys |
-| `POST` | `/api/invites` | Send an invite |
+| `DELETE` | `/api/api-keys/:id` | Delete an API key |
+| `POST` | `/api/invites/:token` | Accept an invite |
+| `GET` | `/api/usage/report` | Get usage report (jobs, tokens, runtime) |
+| `GET` | `/api/sse` | Server-Sent Events stream (machine status, notifications) |
+| `POST` | `/api/migrate` | Run database migrations |
+
+### Daemon Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `IGTP_API_URL` | Yes | — | Base URL of the IGTP app |
+| `IGTP_MACHINE_ID` | Yes | — | ID of this machine |
+| `IGTP_API_KEY` | Yes | — | API key for authentication |
+| `POLL_INTERVAL_MS` | No | `10000` | How often to poll for jobs |
+| `HEARTBEAT_INTERVAL_MS` | No | `60000` | How often to send heartbeats |
+| `OLLAMA_URL` | No | `http://localhost:11434` | Local Ollama URL |
+| `A1111_ENABLED` | No | `false` | Enable A1111 session hosting |
+| `A1111_URL` | No | `http://localhost:7860` | Local A1111 URL |
+| `A1111_LAUNCH_CMD` | No | — | Command to start A1111 if not running |
+| `A1111_MAX_SESSIONS` | No | `1` | Max concurrent tunnel sessions |
+| `A1111_SESSION_MAX_MINS` | No | `120` | Max session duration in minutes |
 
 ### Running Locally
 

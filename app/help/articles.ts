@@ -399,13 +399,24 @@ On the request page, you'll see:
 
 You can also add a note before approving or denying.
 
+## Time-Limited Access
+
+When someone requests access, they include an **estimated number of hours** they need. When you approve the request, their access is automatically set to expire after that many hours.
+
+- The requester will see a **countdown timer** on the machine page showing how long they have left
+- On your Browse page, you'll see a **connection badge** showing whether each user is connected and how much time they have remaining
+- When the time runs out, their access expires and they can no longer use the machine
+
+If someone needs more time, they can submit an **extension request** — a new request asking for additional hours. You'll be notified just like the original request.
+
 ## Managing Existing Access
 
 To see who currently has access to your machines:
 
 1. Click **"My Machines"** in the navigation bar
 2. Click on a machine name to see its details
-3. You'll see requests and their statuses`,
+3. You'll see the **Connected Users** panel showing everyone currently using your machine, along with their remaining time
+4. You'll also see all requests and their statuses`,
   },
   {
     id: 'what-happens-when-someone-uses-my-machine',
@@ -440,6 +451,28 @@ It depends on your hardware:
 - **On integrated graphics or shared memory:** You may notice some slowdown.
 - **On Apple Silicon Macs:** The unified memory architecture means AI work shares memory with the rest of the system, but performance impact is usually minimal.
 
+## Connected Users Panel
+
+On the **My Machines** page, clicking on a machine shows a **Connected Users** panel. This shows you everyone who currently has approved access, along with:
+
+- Their name and email
+- What they said they needed the machine for
+- A countdown showing how much time they have left (if their access is time-limited)
+- A **"Kick"** button to immediately end their access
+
+## Kicking a User
+
+If you need to reclaim your machine's resources, you can **kick** a connected user:
+
+1. Go to **My Machines** and click on your machine
+2. Find the user in the **Connected Users** panel
+3. Click the **"Kick"** button next to their name
+4. Confirm the action
+
+Kicking a user immediately ends their access and disconnects any active sessions (including A1111 sessions). They would need to submit a new access request to use your machine again.
+
+You can also kick all users at once using the daemon command line: **~/.igtp/igtp kick**
+
 ## Can I Pause It?
 
 Yes, at any time. Just run **~/.igtp/igtp stop** in your Terminal. Your machine will appear offline and no new jobs will be sent.
@@ -470,7 +503,11 @@ Each card shows:
   - Green dot = **Online** — The daemon is running and ready to accept jobs
   - Gray dot = **Offline** — The daemon isn't running
 - **GPU information** — What graphics card the machine has (e.g., "NVIDIA RTX 4090") and VRAM
-- **Available models** — The AI models installed on this machine
+- **Available models** — The AI models installed on this machine (e.g., llama3, mistral, codellama)
+- **A1111 badge** — If the machine supports AUTOMATIC1111 (Stable Diffusion image generation), you'll see an indicator
+- **Connection badge** — Shows your access status for each machine:
+  - **Green "connected"** — You have approved access. If your access is time-limited, it also shows a countdown (e.g., "connected · 3h 15m")
+  - **Red "not connected"** — You don't have access, or your access has expired
 
 ## Searching and Filtering
 
@@ -504,9 +541,13 @@ Once you've found a machine you want to use, here's how to request access.
 
 ## Step 2: Send the Request
 
-1. Click the **"Request Access"** button on the machine card
-2. Fill in the request details — describe what you want to use the machine for and how long you need it
+1. Click the **"Request Access"** button on the machine card (or on the machine's detail page)
+2. Fill in the request form:
+   - **Purpose** — Describe what you want to use the machine for (e.g., "Running inference on llama3 for a research project")
+   - **Estimated Hours** — How many hours you expect to need access (e.g., 8 hours)
 3. Submit the request
+
+> **Note about estimated hours:** The number of hours you enter determines how long your access will last once approved. For example, if you request 8 hours, your access will automatically expire 8 hours after the owner approves it. You can always request an extension later if you need more time.
 
 ## Step 3: Wait for Approval
 
@@ -522,12 +563,18 @@ After sending the request:
 
 When the owner approves your request:
 
-- You'll see a notification
+- You'll see a notification with the approval and when your access expires
+- An **access timer** appears on the machine's page showing your remaining time
 - You can now go to the **Chat** page and start a conversation using that machine
+- If the machine supports A1111 (image generation), you can also launch image generation sessions
 
 ## What If My Request is Denied?
 
-If the owner denies your request, you'll see a notification. You can try reaching out to them directly, or look for other machines to request access to.
+If the owner denies your request, you'll see a notification (possibly with a note from the owner). You can try reaching out to them directly, or look for other machines to request access to.
+
+## Disconnecting Early
+
+If you're done before your time runs out, you can click the **"Disconnect"** button on the machine page. This ends your access early and frees up the machine for others. It also ends any active A1111 sessions you have running.
 
 ## How Many Machines Can I Request?
 
@@ -1314,8 +1361,9 @@ You can view all access requests you've sent to use other people's machines.
 A list of all access requests you've sent, showing:
 - **Machine name** — Which machine you requested access to
 - **Machine owner** — Who owns the machine
-- **Status:** Pending, Approved, or Denied
+- **Status:** Pending, Approved, Denied, Completed, or Cancelled
 - **Date** — When you sent the request
+- **Expires** — When your access will run out (if time-limited)
 - **Owner's note** — Any message the owner included when responding
 
 ## Request Statuses Explained
@@ -1323,8 +1371,20 @@ A list of all access requests you've sent, showing:
 | Status | What it means |
 |---|---|
 | **Pending** | You sent the request, waiting for approval |
-| **Approved** | Access granted — you can use this machine |
+| **Approved** | Access granted — you can use this machine (may have a time limit) |
 | **Denied** | The owner declined your request |
+| **Completed** | You disconnected voluntarily, or the owner ended your access |
+| **Cancelled** | The request was cancelled before being reviewed |
+
+## Disconnecting from a Machine
+
+If you no longer need access to a machine, you can disconnect yourself:
+
+1. Go to the machine's page from **Browse**
+2. Click the **"Disconnect"** button in the access timer bar
+3. Confirm the action
+
+This sets your request status to "Completed" and immediately ends your access, including any active A1111 sessions.
 
 ## What if My Request Has Been Pending for a Long Time?
 
@@ -1570,6 +1630,304 @@ IGTP doesn't manage Ollama, but if you also want to remove Ollama:
 ## Done!
 
 After these steps, IGTP and Ollama are completely removed from your computer.`,
+  },
+  {
+    id: 'time-limited-access',
+    category: "Using Someone's Machine",
+    title: 'How time-limited access works',
+    content: `# How time-limited access works
+
+When you request access to someone's machine, you specify how many hours you need. Once the owner approves your request, a countdown starts.
+
+## The Access Timer
+
+After approval, you'll see an **access timer** on the machine's page showing how much time you have left. It looks like this:
+
+- **Green bar** — "Access granted · 3h 15m remaining" — you have plenty of time
+- **Orange bar** — Warning color when you're down to less than 15 minutes
+- **Red bar** — "Access expired" — your time has run out
+
+The timer updates automatically, so you always know where you stand.
+
+## What Happens When Time Runs Out?
+
+When your access expires:
+
+- You can no longer send chat messages to the machine
+- Any active A1111 (image generation) sessions are ended
+- The connection badge on the Browse page changes to **"not connected"**
+- You'll need to submit a new request to regain access
+
+## Requesting an Extension
+
+If you need more time, you don't have to wait until your access expires. On the machine's page, you'll see a **"Request Extension"** form where you can:
+
+1. Explain why you need more time
+2. Enter how many additional hours you'd like
+
+This sends a new request to the machine owner. If they approve it, your access window is extended.
+
+## Access With No Time Limit
+
+Some access approvals may not have a time limit (the "expires at" field will say "No time limit"). This means the owner approved open-ended access. You can still disconnect yourself at any time using the **"Disconnect"** button.
+
+## Connection Badges on Browse
+
+On the **Browse** page, each machine card shows a connection badge so you can quickly see your status:
+
+- **Green "connected"** — You have active access
+- **Green "connected · 5h 30m"** — You have active access with a countdown
+- **Red "not connected"** — No access, or your access has expired`,
+  },
+  {
+    id: 'a1111-image-generation',
+    category: "Using Someone's Machine",
+    title: 'How to use A1111 for image generation',
+    content: `# How to use A1111 for image generation
+
+Some machines on IGTP have **AUTOMATIC1111** (also called A1111 or Stable Diffusion) enabled. This lets you generate images using the machine owner's GPU.
+
+## What is AUTOMATIC1111?
+
+**AUTOMATIC1111** is a popular web interface for **Stable Diffusion**, an AI model that generates images from text descriptions. Instead of chatting with a text AI, you describe an image and the AI creates it.
+
+For example, you could type "a sunset over mountains, oil painting style" and the AI generates that image.
+
+## Finding Machines with A1111
+
+On the **Browse** page, machines that support A1111 show an indicator badge. You can also see this on a machine's detail page — there will be a purple **"Stable Diffusion (A1111)"** section.
+
+## Requirements
+
+To use A1111 on someone's machine, you need:
+
+1. An **approved access request** for that machine (same as for chat)
+2. The machine must have A1111 **enabled and available**
+3. Your access must not be expired
+
+## Launching a Session
+
+1. Go to the machine's page from **Browse**
+2. Find the **"Stable Diffusion (A1111)"** panel
+3. Click **"Launch A1111 Session"**
+4. Wait 10-30 seconds while a secure tunnel is created to the machine
+5. Once ready, click **"Open A1111"** to open the full A1111 web interface in a new tab
+
+## Using A1111
+
+Once the A1111 interface opens in your browser, you can:
+
+- Type a text prompt to generate images
+- Adjust settings like image size, sampling steps, and more
+- Use img2img to modify existing images
+- Access all the features of the AUTOMATIC1111 interface
+
+The interface works exactly like a local A1111 installation — the only difference is it's running on your friend's GPU.
+
+## Ending a Session
+
+When you're done generating images:
+
+1. Go back to the machine's page in IGTP
+2. Click the **"End Session"** button
+3. The tunnel is closed and the machine's resources are freed up
+
+Sessions also end automatically if:
+- Your access to the machine expires
+- The machine owner kicks you
+- You click "Disconnect" to end all access
+- The machine goes offline
+
+## Session States
+
+| State | What it means |
+|---|---|
+| **Setting up tunnel...** | The host machine is creating a secure connection (10-30 seconds) |
+| **Session active** | The tunnel is ready — click "Open A1111" to start |
+| **Session ended** | The session was stopped (by you, the owner, or expiry) |
+| **Session failed** | Something went wrong — click "Try again" |
+
+## A1111 at Capacity
+
+If another user is already running an A1111 session on the same machine, you'll see a message saying "A1111 is currently at capacity." Each machine can only run one A1111 session at a time. Try again later when the other session ends.`,
+  },
+  {
+    id: 'managing-connected-users',
+    category: 'Sharing Your Machine',
+    title: 'How to manage connected users',
+    content: `# How to manage connected users
+
+As a machine owner, you can see who is currently connected to your machine and manage their access.
+
+## The Connected Users Panel
+
+1. Click **"My Machines"** in the navigation bar
+2. Click on your machine name
+3. You'll see a **Connected Users** panel showing everyone with approved access
+
+For each connected user, you can see:
+
+- **Name and email** — Who they are
+- **Purpose** — What they said they need the machine for
+- **Time remaining** — A countdown if their access is time-limited, or "no limit" if open-ended
+
+## Kicking a User
+
+If you need your machine's resources back, or want to end someone's access for any reason:
+
+1. Find the user in the **Connected Users** panel
+2. Click the **"Kick"** button next to their name
+3. Confirm the action
+
+When you kick a user:
+- Their access request is marked as **"Completed"**
+- Any active sessions (including A1111 image generation) are immediately ended
+- They'll need to send a new access request to use your machine again
+
+## Kicking All Users (from the command line)
+
+If you want to quickly disconnect everyone, you can use the daemon command line:
+
+    ~/.igtp/igtp kick
+
+This ends all active sessions on your machine at once.
+
+## When to Kick Someone
+
+Common reasons to kick a user:
+- You need your GPU for your own work (gaming, training your own models, etc.)
+- Their access has been going on longer than expected
+- You're shutting down or restarting your computer
+- You notice high resource usage and want to free things up`,
+  },
+  {
+    id: 'api-reference',
+    category: 'API Access',
+    title: 'Full API reference',
+    content: `# Full API reference
+
+This is a comprehensive list of all API endpoints available in IGTP. All endpoints require authentication via an API key in the Authorization header unless otherwise noted.
+
+    Authorization: Bearer igtp_xxxx_xxxx_xxxx_xxxx
+
+---
+
+## Chat & AI
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | /api/ollama/chat | Send a chat message to an AI model |
+| POST | /api/ollama/embed | Generate text embeddings |
+
+---
+
+## Machines
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | /api/machines | List all machines visible to you |
+| POST | /api/machines | Register a new machine |
+| GET | /api/machines/:id | Get details of a specific machine |
+| DELETE | /api/machines/:id | Delete a machine you own |
+| GET | /api/machines/:id/models | List models on a machine |
+| POST | /api/machines/:id/models | Sync model list (used by the daemon) |
+| POST | /api/machines/:id/heartbeat | Send a heartbeat (used by the daemon to show online status) |
+| POST | /api/machines/:id/kick | Kick all connected users off a machine (owner only) |
+| GET | /api/machines/:id/requests | List access requests for a machine |
+| POST | /api/machines/:id/requests | Submit an access request for a machine |
+| PATCH | /api/machines/:id | Update machine details (owner only) |
+
+---
+
+## A1111 / Image Generation Sessions
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | /api/machines/:id/sessions | List sessions for a machine |
+| POST | /api/machines/:id/sessions | Request a new A1111 session on a machine |
+| POST | /api/sessions/:id/stop | Stop an active A1111 session |
+| GET | /api/sessions/:id/tunnel | Check the status and tunnel URL of a session |
+| POST | /api/sessions/:id/tunnel | Report tunnel URL or status change (used by the daemon) |
+
+---
+
+## Access Requests
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | /api/requests | List your access requests |
+| PATCH | /api/requests/:id | Update request status (approve, deny, complete, cancel) |
+
+**PATCH statuses:** pending, approved, denied, completed, cancelled
+
+- **Machine owners** can approve or deny requests
+- **Requesters** can complete (disconnect) or cancel their own requests
+
+---
+
+## Conversations & Messages
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | /api/conversations | List your conversations |
+| POST | /api/conversations | Create a new conversation |
+| DELETE | /api/conversations/:id | Delete a conversation |
+| GET | /api/conversations/:id/messages | List messages in a conversation |
+| POST | /api/conversations/:id/messages | Send a message in a conversation |
+
+---
+
+## Jobs
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | /api/jobs | List your jobs |
+| GET | /api/jobs/:id | Get details of a specific job |
+| POST | /api/jobs/dispatch | Get the next job for a machine (used by the daemon) |
+| POST | /api/jobs/:id/snapshot | Report job completion (used by the daemon) |
+
+---
+
+## API Keys
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | /api/api-keys | List your API keys |
+| POST | /api/api-keys | Create a new API key |
+| DELETE | /api/api-keys/:id | Delete an API key |
+
+---
+
+## Trust Network & Friends
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | /api/trust | List your trust connections |
+| POST | /api/trust | Add someone to your trust network |
+| DELETE | /api/trust/:id | Remove someone from your trust network |
+| GET | /api/friend-requests | List your pending friend requests |
+| POST | /api/friend-requests | Send a friend request |
+| PATCH | /api/friend-requests/:id | Accept or deny a friend request |
+
+---
+
+## Other
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | /api/invites/:token | Accept an invitation to join IGTP |
+| GET | /api/usage/report | Get usage report |
+| GET | /api/sse | Subscribe to real-time notifications (Server-Sent Events) |
+| POST | /api/migrate | Run database migrations (admin) |
+
+---
+
+## Notes
+
+- All request and response bodies use **JSON** format
+- Include **Content-Type: application/json** in POST/PATCH/DELETE requests
+- Endpoints used by the daemon (heartbeat, dispatch, snapshot, tunnel, models sync) are not meant for manual use
+- The base URL is **https://igtp.vercel.app**`,
   },
 ]
 
