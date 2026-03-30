@@ -65,7 +65,7 @@ const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://localhost:11434";
 
 // A1111 config
 const A1111_ENABLED = process.env.A1111_ENABLED === "true";
-const A1111_URL = process.env.A1111_URL ?? "http://localhost:7860";
+const A1111_URL = (process.env.A1111_URL ?? "http://localhost:7860").replace(/\/+$/, "");
 const A1111_LAUNCH_CMD = process.env.A1111_LAUNCH_CMD ?? "";
 const A1111_MAX_SESSIONS = Number(process.env.A1111_MAX_SESSIONS ?? 1);
 const A1111_SESSION_MAX_MINS = Number(process.env.A1111_SESSION_MAX_MINS ?? 120);
@@ -241,9 +241,12 @@ async function isA1111Running(): Promise<boolean> {
 }
 
 async function ensureA1111Running(): Promise<boolean> {
-  if (await isA1111Running()) return true;
+  if (await isA1111Running()) {
+    console.log("[a1111] A1111 is already running");
+    return true;
+  }
   if (!A1111_LAUNCH_CMD) {
-    console.log("[a1111] Not running and no launch command configured");
+    console.log(`[a1111] A1111 not responding at ${A1111_URL}/sdapi/v1/sd-models and no launch command configured`);
     return false;
   }
 
