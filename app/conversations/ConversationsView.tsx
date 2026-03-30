@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { MessageSquare, Plus, Trash2, Send, Loader2 } from "lucide-react";
+import { MessageSquare, Plus, Trash2, Send, Loader2, Lock } from "lucide-react";
 import { MarkdownContent } from "@/app/components/MarkdownContent";
 import type { Conversation, ConversationMessage } from "@/lib/types";
 
@@ -15,9 +15,40 @@ interface Props {
   initialConversations: Conversation[];
   approvedMachines: ApprovedMachine[];
   modelsByMachine: Record<string, Array<{ modelName: string; modelType: string }>>;
+  activeMachineIds: string[];
 }
 
-export function ConversationsView({ initialConversations, approvedMachines, modelsByMachine }: Props) {
+function formatTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function computeTokensPerSec(
+  messages: ConversationMessage[],
+  msgIndex: number
+): number | null {
+  const msg = messages[msgIndex];
+  if (msg.role !== "assistant" || !msg.tokens) return null;
+  // Find the preceding user message to compute elapsed time
+  const prevMsg = messages[msgIndex - 1];
+  if (!prevMsg || prevMsg.role !== "user") return null;
+  const elapsed =
+    (new Date(msg.createdAt).getTime() - new Date(prevMsg.createdAt).getTime()) / 1000;
+  if (elapsed <= 0) return null;
+  return Math.round((msg.tokens / elapsed) * 10) / 10;
+}
+
+export function ConversationsView({
+  initialConversations,
+  approvedMachines,
+  modelsByMachine,
+  activeMachineIds,
+}: Props) {
   const [conversations, setConversations] = useState(initialConversations);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
@@ -27,10 +58,14 @@ export function ConversationsView({ initialConversations, approvedMachines, mode
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [newMachineId, setNewMachineId] = useState(approvedMachines[0]?.id ?? "");
   const [newModel, setNewModel] = useState("");
+  const [sendError, setSendError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const activeConversation = conversations.find((c) => c.id === activeId);
+  const accessExpired = activeConversation
+    ? !activeMachineIds.includes(activeConversation.machineId)
+    : false;
 
   // Auto-select first model when machine changes
   useEffect(() => {
@@ -46,6 +81,7 @@ export function ConversationsView({ initialConversations, approvedMachines, mode
   // Load messages when active conversation changes
   useEffect(() => {
     if (!activeId) return;
+    setSendError(null);
     fetch(`/api/conversations/${activeId}/messages`)
       .then((r) => r.json())
       .then(setMessages)
@@ -79,19 +115,27 @@ export function ConversationsView({ initialConversations, approvedMachines, mode
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ machineId: newMachineId, model: newModel }),
     });
+    if (!res.ok) {
+      const data = await res.json();
+      setSendError(data.error || "Failed to create conversation");
+      setShowNewDialog(false);
+      return;
+    }
     const conv = await res.json();
     setConversations((prev) => [conv, ...prev]);
     setActiveId(conv.id);
     setMessages([]);
     setShowNewDialog(false);
+    setSendError(null);
     inputRef.current?.focus();
   }
 
   async function sendMessage() {
-    if (!input.trim() || !activeId || sending) return;
+    if (!input.trim() || !activeId || sending || accessExpired) return;
     const content = input.trim();
     setInput("");
     setSending(true);
+    setSendError(null);
 
     // Optimistically add user message
     const tempMsg: ConversationMessage = {
@@ -106,15 +150,22 @@ export function ConversationsView({ initialConversations, approvedMachines, mode
     setMessages((prev) => [...prev, tempMsg]);
 
     try {
-      await fetch(`/api/conversations/${activeId}/messages`, {
+      const res = await fetch(`/api/conversations/${activeId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
       });
-      setWaitingForResponse(true);
+      if (!res.ok) {
+        const data = await res.json();
+        setSendError(data.error || "Failed to send message");
+        setMessages((prev) => prev.filter((m) => m.id !== tempMsg.id));
+      } else {
+        setWaitingForResponse(true);
+      }
     } catch {
       // Remove optimistic message on error
       setMessages((prev) => prev.filter((m) => m.id !== tempMsg.id));
+      setSendError("Failed to send message");
     } finally {
       setSending(false);
     }
@@ -157,29 +208,33 @@ export function ConversationsView({ initialConversations, approvedMachines, mode
               No conversations yet. Click &quot;New Chat&quot; to start.
             </p>
           )}
-          {conversations.map((conv) => (
-            <div
-              key={conv.id}
-              className={`group flex items-center gap-2 px-3 py-2.5 cursor-pointer border-b border-border/50 transition-colors ${
-                activeId === conv.id ? "bg-accent" : "hover:bg-accent/50"
-              }`}
-              onClick={() => setActiveId(conv.id)}
-            >
-              <MessageSquare className="w-4 h-4 text-muted-foreground shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-foreground truncate">{conv.title}</p>
-                <p className="text-[10px] text-muted-foreground truncate">
-                  {conv.model} · {conv.totalTokens.toLocaleString()} tokens
-                </p>
-              </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); deleteConv(conv.id); }}
-                className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-red-400 transition-all"
+          {conversations.map((conv) => {
+            const expired = !activeMachineIds.includes(conv.machineId);
+            return (
+              <div
+                key={conv.id}
+                className={`group flex items-center gap-2 px-3 py-2.5 cursor-pointer border-b border-border/50 transition-colors ${
+                  activeId === conv.id ? "bg-accent" : "hover:bg-accent/50"
+                }`}
+                onClick={() => setActiveId(conv.id)}
               >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
+                <MessageSquare className={`w-4 h-4 shrink-0 ${expired ? "text-muted-foreground/30" : "text-muted-foreground"}`} />
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm truncate ${expired ? "text-muted-foreground/50" : "text-foreground"}`}>{conv.title}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {conv.model} · {conv.totalTokens.toLocaleString()} tokens
+                    {expired && <span className="text-red-400 ml-1">· expired</span>}
+                  </p>
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); deleteConv(conv.id); }}
+                  className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-red-400 transition-all"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -213,7 +268,15 @@ export function ConversationsView({ initialConversations, approvedMachines, mode
             {/* Chat header */}
             <div className="px-4 py-3 border-b border-border flex items-center justify-between shrink-0">
               <div>
-                <h2 className="text-sm font-medium text-foreground truncate">{activeConversation?.title}</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-medium text-foreground truncate">{activeConversation?.title}</h2>
+                  {accessExpired && (
+                    <span className="inline-flex items-center gap-1 text-[10px] text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded">
+                      <Lock className="w-2.5 h-2.5" />
+                      Access expired
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">
                   {activeConversation?.model} · {activeConversation?.totalTokens.toLocaleString()} tokens used
                 </p>
@@ -227,33 +290,42 @@ export function ConversationsView({ initialConversations, approvedMachines, mode
                   Send a message to start the conversation.
                 </p>
               )}
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                >
+              {messages.map((msg, i) => {
+                const tps = computeTokensPerSec(messages, i);
+                return (
                   <div
-                    className={`max-w-[80%] rounded-xl px-4 py-3 text-sm ${
-                      msg.role === "user"
-                        ? "bg-foreground text-background"
-                        : "bg-card border border-border"
-                    }`}
+                    key={msg.id}
+                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                   >
-                    {msg.role === "user" ? (
-                      <div className="whitespace-pre-wrap break-words">{msg.content}</div>
-                    ) : (
-                      <MarkdownContent content={msg.content} />
-                    )}
-                    {msg.tokens != null && (
-                      <p className={`text-[10px] mt-1 ${
+                    <div
+                      className={`max-w-[80%] rounded-xl px-4 py-3 text-sm ${
+                        msg.role === "user"
+                          ? "bg-foreground text-background"
+                          : "bg-card border border-border"
+                      }`}
+                    >
+                      {msg.role === "user" ? (
+                        <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                      ) : (
+                        <MarkdownContent content={msg.content} />
+                      )}
+                      <div className={`flex items-center gap-2 mt-1 text-[10px] ${
                         msg.role === "user" ? "text-background/50" : "text-muted-foreground"
                       }`}>
-                        {msg.tokens.toLocaleString()} tokens
-                      </p>
-                    )}
+                        {msg.tokens != null && (
+                          <span>{msg.tokens.toLocaleString()} tokens</span>
+                        )}
+                        {tps !== null && (
+                          <span>· {tps} tok/s</span>
+                        )}
+                        {msg.createdAt && !msg.id.startsWith("temp-") && (
+                          <span>· {formatTime(msg.createdAt)}</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {waitingForResponse && (
                 <div className="flex justify-start">
                   <div className="bg-card border border-border rounded-xl px-4 py-3 text-sm">
@@ -267,27 +339,41 @@ export function ConversationsView({ initialConversations, approvedMachines, mode
               <div ref={messagesEndRef} />
             </div>
 
+            {/* Error banner */}
+            {sendError && (
+              <div className="px-4 py-2 bg-red-500/10 border-t border-red-500/20">
+                <p className="text-xs text-red-400">{sendError}</p>
+              </div>
+            )}
+
             {/* Input */}
             <div className="px-4 py-3 border-t border-border shrink-0">
-              <div className="flex gap-2">
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Type a message... (Enter to send, Shift+Enter for newline)"
-                  rows={1}
-                  className="flex-1 bg-card border border-border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-foreground/20 resize-none"
-                  disabled={sending || waitingForResponse}
-                />
-                <button
-                  onClick={sendMessage}
-                  disabled={!input.trim() || sending || waitingForResponse}
-                  className="px-3 py-2.5 bg-foreground text-background rounded-lg hover:bg-foreground/90 disabled:opacity-50 transition-colors shrink-0"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </div>
+              {accessExpired ? (
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-muted/50 rounded-lg text-sm text-muted-foreground">
+                  <Lock className="w-4 h-4 shrink-0" />
+                  <span>Your access to this machine has expired. Request new access to continue chatting.</span>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <textarea
+                    ref={inputRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Type a message... (Enter to send, Shift+Enter for newline)"
+                    rows={1}
+                    className="flex-1 bg-card border border-border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-foreground/20 resize-none"
+                    disabled={sending || waitingForResponse}
+                  />
+                  <button
+                    onClick={sendMessage}
+                    disabled={!input.trim() || sending || waitingForResponse}
+                    className="px-3 py-2.5 bg-foreground text-background rounded-lg hover:bg-foreground/90 disabled:opacity-50 transition-colors shrink-0"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
           </>
         )}

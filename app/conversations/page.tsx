@@ -32,11 +32,15 @@ export default async function ConversationsPage() {
     requestId: approvedRequests.find((r) => r.machineId === m!.id)!.id,
   }));
 
+  // Build set of machine IDs the user currently has active access to
+  const activeMachineIds = new Set(approvedRequests.map((r) => r.machineId));
+
   return (
     <ConversationsView
       initialConversations={conversations}
       approvedMachines={approvedMachines}
       modelsByMachine={modelsByMachine}
+      activeMachineIds={[...activeMachineIds]}
     />
   );
 }
