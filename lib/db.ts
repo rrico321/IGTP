@@ -1300,6 +1300,8 @@ export async function getDashboardStats(userId: string, since?: string): Promise
     pendingAccessRows,
     a1111SessionCountRows,
     a1111TotalMinutesRows,
+    activeConnectionRows,
+    pendingOutboundRows,
   ] = await Promise.all([
     // networkSize — count of trusted user IDs (all-time)
     sql`
@@ -1509,6 +1511,39 @@ export async function getDashboardStats(userId: string, since?: string): Promise
         AND status = 'ended'
         AND (${sinceFilter}::timestamptz IS NULL OR created_at >= ${sinceFilter}::timestamptz)
     `,
+
+    // activeConnections — user's approved, non-expired access to other machines (not filtered)
+    sql`
+      SELECT
+        ar.id AS "requestId",
+        ar.machine_id AS "machineId",
+        m.name AS "machineName",
+        ar.expires_at AS "expiresAt",
+        ar.approved_at AS "approvedAt",
+        ar.purpose
+      FROM access_requests ar
+      JOIN machines m ON m.id = ar.machine_id
+      WHERE ar.requester_id = ${userId}
+        AND ar.status = 'approved'
+        AND (ar.expires_at IS NULL OR ar.expires_at > NOW())
+      ORDER BY ar.approved_at DESC
+    `,
+
+    // pendingOutboundRequests — user's pending requests to other machines (not filtered)
+    sql`
+      SELECT
+        ar.id AS "requestId",
+        ar.machine_id AS "machineId",
+        m.name AS "machineName",
+        ar.purpose,
+        ar.estimated_hours AS "estimatedHours",
+        ar.created_at AS "createdAt"
+      FROM access_requests ar
+      JOIN machines m ON m.id = ar.machine_id
+      WHERE ar.requester_id = ${userId}
+        AND ar.status = 'pending'
+      ORDER BY ar.created_at DESC
+    `,
   ]);
 
   // Build lookup maps for machine sub-queries
@@ -1580,5 +1615,23 @@ export async function getDashboardStats(userId: string, since?: string): Promise
 
     a1111SessionCount: (a1111SessionCountRows[0] as any).a1111SessionCount,
     a1111TotalMinutes: Math.round(((a1111TotalMinutesRows[0] as any).a1111TotalMinutes as number) * 100) / 100,
+
+    activeConnections: activeConnectionRows.map((r: any) => ({
+      requestId: r.requestId as string,
+      machineId: r.machineId as string,
+      machineName: r.machineName as string,
+      expiresAt: r.expiresAt as string | null,
+      approvedAt: r.approvedAt as string | null,
+      purpose: r.purpose as string,
+    })),
+
+    pendingOutboundRequests: pendingOutboundRows.map((r: any) => ({
+      requestId: r.requestId as string,
+      machineId: r.machineId as string,
+      machineName: r.machineName as string,
+      purpose: r.purpose as string,
+      estimatedHours: r.estimatedHours as number,
+      createdAt: r.createdAt as string,
+    })),
   };
 }

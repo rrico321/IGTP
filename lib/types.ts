@@ -232,6 +232,26 @@ export interface DashboardStats {
   // A1111 stats (time-filtered)
   a1111SessionCount: number;
   a1111TotalMinutes: number;
+
+  // User's active connections (not filtered)
+  activeConnections: Array<{
+    requestId: string;
+    machineId: string;
+    machineName: string;
+    expiresAt: string | null;
+    approvedAt: string | null;
+    purpose: string;
+  }>;
+
+  // User's pending outbound requests (not filtered)
+  pendingOutboundRequests: Array<{
+    requestId: string;
+    machineId: string;
+    machineName: string;
+    purpose: string;
+    estimatedHours: number;
+    createdAt: string;
+  }>;
 }
 
 export interface UsageReport {

@@ -8,6 +8,8 @@ import {
   denyFriendRequestAction,
   approveAccessRequestAction,
   denyAccessRequestAction,
+  disconnectRequestAction,
+  cancelRequestAction,
 } from './actions'
 import {
   Users,
@@ -23,6 +25,11 @@ import {
   Check,
   X,
   ChevronRight,
+  Plug,
+  Hourglass,
+  LogOut,
+  XCircle,
+  ExternalLink,
 } from 'lucide-react'
 
 function getPeriodSince(period: string | undefined): string | undefined {
@@ -285,6 +292,107 @@ async function Dashboard({
                   </button>
                 </form>
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Current Connections */}
+      {stats.activeConnections.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Plug className="h-3.5 w-3.5 text-emerald-500" />
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
+              Current Connections
+            </h2>
+            <span className="text-xs text-muted-foreground">({stats.activeConnections.length})</span>
+          </div>
+          {stats.activeConnections.map((conn) => {
+            const timeLeft = conn.expiresAt
+              ? Math.max(0, Math.round((new Date(conn.expiresAt).getTime() - Date.now()) / 60000))
+              : null
+            return (
+              <div
+                key={conn.requestId}
+                className="bg-card border border-border rounded-xl p-4 ring-1 ring-foreground/5 flex items-center justify-between gap-4"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    <span className="text-sm font-medium text-foreground">{conn.machineName}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    {timeLeft !== null && (
+                      <span className={timeLeft < 30 ? 'text-amber-500' : ''}>
+                        {timeLeft > 60 ? `${Math.round(timeLeft / 60)}h ${timeLeft % 60}m left` : `${timeLeft}m left`}
+                      </span>
+                    )}
+                    {timeLeft === null && <span>No time limit</span>}
+                    {conn.purpose && !conn.purpose.startsWith('[Extension]') && (
+                      <span className="truncate">{conn.purpose}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Link
+                    href={`/browse/${conn.machineId}`}
+                    className="h-8 px-3 flex items-center gap-1.5 text-xs rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-border/60 transition-colors"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    Extend
+                  </Link>
+                  <form action={disconnectRequestAction.bind(null, conn.requestId)}>
+                    <button
+                      type="submit"
+                      className="h-8 px-3 flex items-center gap-1.5 text-xs rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors cursor-pointer"
+                    >
+                      <LogOut className="h-3 w-3" />
+                      Disconnect
+                    </button>
+                  </form>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Pending Outbound Requests */}
+      {stats.pendingOutboundRequests.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Hourglass className="h-3.5 w-3.5 text-amber-500" />
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
+              Pending Requests
+            </h2>
+            <span className="text-xs text-muted-foreground">({stats.pendingOutboundRequests.length})</span>
+          </div>
+          {stats.pendingOutboundRequests.map((req) => (
+            <div
+              key={req.requestId}
+              className="bg-card border border-border rounded-xl p-4 ring-1 ring-foreground/5 flex items-center justify-between gap-4"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  <span className="text-sm font-medium text-foreground">{req.machineName}</span>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <span>{req.estimatedHours}h requested</span>
+                  {req.purpose && !req.purpose.startsWith('[Extension]') && (
+                    <span className="truncate">{req.purpose}</span>
+                  )}
+                </div>
+              </div>
+              <form action={cancelRequestAction.bind(null, req.requestId)}>
+                <button
+                  type="submit"
+                  className="h-8 px-3 flex items-center gap-1.5 text-xs rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors cursor-pointer"
+                >
+                  <XCircle className="h-3 w-3" />
+                  Cancel
+                </button>
+              </form>
             </div>
           ))}
         </div>

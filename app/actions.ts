@@ -47,3 +47,23 @@ export async function denyAccessRequestAction(id: string): Promise<void> {
     // handled gracefully
   }
 }
+
+export async function disconnectRequestAction(id: string): Promise<void> {
+  try {
+    await requireUserId()
+    await updateRequest(id, { status: 'completed' })
+    revalidatePath('/')
+  } catch {
+    // handled gracefully
+  }
+}
+
+export async function cancelRequestAction(id: string): Promise<void> {
+  try {
+    await requireUserId()
+    await updateRequest(id, { status: 'cancelled' })
+    revalidatePath('/')
+  } catch {
+    // handled gracefully
+  }
+}
