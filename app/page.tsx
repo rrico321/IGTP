@@ -476,7 +476,7 @@ async function Dashboard({
           { label: 'Start a Chat', href: '/conversations', icon: MessageSquare },
           { label: 'Browse Machines', href: '/browse', icon: Monitor },
           { label: 'Invite a Friend', href: '/settings/invites', icon: UserPlus },
-          { label: 'View Jobs', href: '/settings', icon: Clock },
+          { label: 'View Jobs', href: '/jobs', icon: Clock },
         ].map(({ label, href, icon: QIcon }) => (
           <Link
             key={href}
