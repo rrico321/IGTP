@@ -529,7 +529,30 @@ if (A1111_ENABLED) {
   console.log(`[igtp-daemon]   A1111: disabled`);
 }
 
+// On startup, clean up any stale sessions from previous runs
+async function cleanupStaleSessions() {
+  if (!A1111_ENABLED) return;
+  try {
+    const data = await apiGet(`/api/machines/${MACHINE_ID}/sessions`);
+    const stale = data.sessions?.filter((s: { status: string }) =>
+      s.status === "pending" || s.status === "active"
+    ) ?? [];
+    for (const session of stale) {
+      console.log(`[a1111] Cleaning up stale session from previous run: ${session.id}`);
+      await apiPost(`/api/sessions/${session.id}/tunnel`, {
+        tunnelUrl: null,
+        status: "ended",
+        error: "Daemon restarted",
+      }).catch(() => {});
+    }
+    if (stale.length > 0) {
+      console.log(`[a1111] Cleaned up ${stale.length} stale session(s)`);
+    }
+  } catch {}
+}
+
 // Immediate first sync
+cleanupStaleSessions();
 sendHeartbeat();
 syncModels();
 poll();
