@@ -1,12 +1,12 @@
 import Link from 'next/link'
 import { requireUserId } from '@/lib/auth'
-import { Key, FileText, GitPullRequest, Lock } from 'lucide-react'
+import { Key, FileText, GitPullRequest, UserCog } from 'lucide-react'
 
 const SETTINGS_LINKS = [
+  { href: '/settings/account', label: 'Account', description: 'Update your name, email, and password', icon: UserCog },
   { href: '/requests', label: 'My Requests', description: 'Access requests you\'ve sent to machine owners', icon: GitPullRequest },
   { href: '/jobs', label: 'Jobs', description: 'Audit log of all AI prompts and their results', icon: FileText },
   { href: '/settings/api-keys', label: 'API Keys', description: 'Manage API keys for daemon and programmatic access', icon: Key },
-  { href: '/settings/password', label: 'Change Password', description: 'Update your account password', icon: Lock },
 ]
 
 export default async function SettingsPage() {

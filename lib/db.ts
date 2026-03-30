@@ -301,6 +301,11 @@ async function hashPassword(password: string): Promise<string> {
   return createHash("sha256").update(password).digest("hex");
 }
 
+export async function updateUserProfile(userId: string, name: string, email: string): Promise<void> {
+  const sql = getSql();
+  await sql`UPDATE users SET name = ${name}, email = ${email} WHERE id = ${userId}`;
+}
+
 export async function verifyPassword(userId: string, password: string): Promise<boolean> {
   const sql = getSql();
   const hash = await hashPassword(password);
