@@ -218,6 +218,11 @@ CREATE TABLE IF NOT EXISTS a1111_sessions (
 CREATE INDEX IF NOT EXISTS idx_a1111_sessions_machine ON a1111_sessions(machine_id, status);
 CREATE INDEX IF NOT EXISTS idx_a1111_sessions_requester ON a1111_sessions(requester_id);
 
+-- Clean up stale sessions (pending/active with no tunnel older than 5 min)
+UPDATE a1111_sessions SET status = 'ended', updated_at = NOW()
+WHERE status IN ('pending', 'active', 'failed') AND tunnel_url IS NULL
+  AND created_at < NOW() - INTERVAL '5 minutes';
+
 -- Seed data (idempotent via ON CONFLICT DO NOTHING)
 INSERT INTO users (id, name, email, created_at) VALUES
   ('user-1', 'Alice Chen', 'alice@example.com', '2026-03-01T00:00:00.000Z'),
