@@ -16,11 +16,7 @@ export function TimeFilter() {
 
   function setPeriod(value: string) {
     const params = new URLSearchParams(searchParams.toString())
-    if (value === 'all') {
-      params.delete('period')
-    } else {
-      params.set('period', value)
-    }
+    params.set('period', value)
     router.replace(`/?${params.toString()}`, { scroll: false })
   }
 
