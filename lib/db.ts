@@ -83,10 +83,17 @@ export async function updateMachine(
 
 export async function deleteMachine(id: string, ownerId: string): Promise<boolean> {
   const sql = getSql();
-  const rows = await sql`
-    DELETE FROM machines WHERE id = ${id} AND owner_id = ${ownerId} RETURNING id
-  `;
-  return rows.length > 0;
+  // Verify ownership first
+  const check = await sql`SELECT id FROM machines WHERE id = ${id} AND owner_id = ${ownerId}`;
+  if (check.length === 0) return false;
+
+  // Clean up related records (foreign key constraints)
+  await sql`DELETE FROM a1111_sessions WHERE machine_id = ${id}`;
+  await sql`DELETE FROM machine_models WHERE machine_id = ${id}`;
+  await sql`DELETE FROM gpu_jobs WHERE machine_id = ${id}`;
+  await sql`DELETE FROM access_requests WHERE machine_id = ${id}`;
+  await sql`DELETE FROM machines WHERE id = ${id}`;
+  return true;
 }
 
 // ─── Access Requests ──────────────────────────────────────────────────────────

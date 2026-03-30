@@ -51,8 +51,15 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const userId = await authenticateRequest(request);
-  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  // Support both cookie auth (website) and API key auth (daemon)
+  let userId: string | null = await authenticateRequest(request);
+  if (!userId) {
+    try {
+      userId = await requireUserId();
+    } catch {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
 
   const { id } = await params;
   const deleted = await deleteMachine(id, userId);
