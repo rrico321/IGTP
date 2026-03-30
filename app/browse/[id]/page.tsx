@@ -6,7 +6,7 @@ import { RequestForm } from './RequestForm'
 import { A1111SessionPanel } from './A1111SessionPanel'
 import { createRequestAction } from '../actions'
 import { MachineStatusBadge } from '@/app/components/StatusBadge'
-import { isTrusted } from '@/lib/db'
+import { isTrusted, hasApprovedRequest } from '@/lib/db'
 import type { Machine } from '@/lib/types'
 
 const STATUS_LABELS: Record<Machine['status'], string> = {
@@ -30,6 +30,7 @@ export default async function BrowseMachineDetailPage({
   const canRequest = machine.status === 'available' && !isOwner
   const userIsTrusted = isOwner || await isTrusted(machine.ownerId, userId)
   const showA1111 = machine.a1111Enabled && userIsTrusted
+  const hasApproval = isOwner || await hasApprovedRequest(machine.id, userId)
 
   const action = createRequestAction.bind(null, machine.id)
 
@@ -86,6 +87,7 @@ export default async function BrowseMachineDetailPage({
           machineId={machine.id}
           machineName={machine.name}
           isAvailable={machine.a1111Available}
+          hasApproval={hasApproval}
         />
       )}
 

@@ -15,10 +15,12 @@ export function A1111SessionPanel({
   machineId,
   machineName,
   isAvailable,
+  hasApproval,
 }: {
   machineId: string;
   machineName: string;
   isAvailable: boolean;
+  hasApproval: boolean;
 }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -83,8 +85,17 @@ export function A1111SessionPanel({
         You&apos;ll get the full AUTOMATIC1111 web interface.
       </p>
 
-      {/* No active session — show request button */}
-      {!session && (
+      {/* No active session */}
+      {!session && !hasApproval && (
+        <div className="py-3 px-4 rounded-lg bg-muted/50 border border-border">
+          <p className="text-sm text-muted-foreground">
+            You need an approved access request to use A1111 on this machine.
+            Use the <strong>Request Access</strong> form below, and the machine owner will review it.
+          </p>
+        </div>
+      )}
+
+      {!session && hasApproval && (
         <>
           {isAvailable ? (
             <button

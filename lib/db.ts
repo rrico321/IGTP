@@ -134,6 +134,16 @@ export async function getRequestsByMachine(machineId: string): Promise<AccessReq
   return rows as AccessRequest[];
 }
 
+export async function hasApprovedRequest(machineId: string, requesterId: string): Promise<boolean> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT 1 FROM access_requests
+    WHERE machine_id = ${machineId} AND requester_id = ${requesterId} AND status = 'approved'
+    LIMIT 1
+  `;
+  return rows.length > 0;
+}
+
 export async function getRequestsByRequester(requesterId: string): Promise<AccessRequest[]> {
   const sql = getSql();
   const rows = await sql`

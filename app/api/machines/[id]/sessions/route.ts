@@ -4,7 +4,7 @@ import {
   getSessionsForMachine,
   createA1111Session,
   getMachineById,
-  isTrusted,
+  hasApprovedRequest,
 } from "@/lib/db";
 
 // GET /api/machines/[id]/sessions — daemon polls for pending sessions
@@ -26,7 +26,6 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   let userId: string;
-  // Support both cookie auth (website) and API key auth (daemon)
   const apiUser = await authenticateRequest(request);
   if (apiUser) {
     userId = apiUser;
@@ -40,7 +39,6 @@ export async function POST(
 
   const { id } = await params;
 
-  // Check machine exists and has A1111 enabled
   const machine = await getMachineById(id);
   if (!machine) {
     return Response.json({ error: "Machine not found" }, { status: 404 });
@@ -52,11 +50,15 @@ export async function POST(
     return Response.json({ error: "A1111 is currently at capacity on this machine" }, { status: 409 });
   }
 
-  // Check trust — requester must be trusted by machine owner
+  // Owner can always use their own machine
   if (userId !== machine.ownerId) {
-    const trusted = await isTrusted(machine.ownerId, userId);
-    if (!trusted) {
-      return Response.json({ error: "You must be in this machine owner's trust network" }, { status: 403 });
+    // Require an approved access request
+    const approved = await hasApprovedRequest(id, userId);
+    if (!approved) {
+      return Response.json(
+        { error: "You need an approved access request to use A1111 on this machine. Use the Request Access form below." },
+        { status: 403 }
+      );
     }
   }
 
