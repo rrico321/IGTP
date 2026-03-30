@@ -13,7 +13,10 @@ export default async function ConversationsPage() {
 
   // Get approved machines and their models for "new conversation" dialog
   const requests = await getRequestsByRequester(userId);
-  const approvedRequests = requests.filter((r) => r.status === "approved");
+  const now = new Date();
+  const approvedRequests = requests.filter(
+    (r) => r.status === "approved" && (!r.expiresAt || new Date(r.expiresAt) > now)
+  );
   const machineIds = [...new Set(approvedRequests.map((r) => r.machineId))];
   const machines = (await Promise.all(machineIds.map((id) => getMachineById(id)))).filter(Boolean);
 

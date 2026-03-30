@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { requireUserId } from "@/lib/auth";
-import { getConversationsByUser, createConversation, getRequestsByRequester } from "@/lib/db";
+import { getConversationsByUser, createConversation, getApprovedRequest } from "@/lib/db";
 
 export async function GET() {
   const userId = await requireUserId();
@@ -16,11 +16,10 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "machineId and model are required" }, { status: 400 });
   }
 
-  // Verify user has approved access
-  const requests = await getRequestsByRequester(userId);
-  const approved = requests.find((r) => r.machineId === machineId && r.status === "approved");
+  // Verify user has approved, non-expired access
+  const approved = await getApprovedRequest(machineId, userId);
   if (!approved) {
-    return Response.json({ error: "No approved access to this machine" }, { status: 403 });
+    return Response.json({ error: "No approved access to this machine (or access has expired)" }, { status: 403 });
   }
 
   const conversation = await createConversation({
