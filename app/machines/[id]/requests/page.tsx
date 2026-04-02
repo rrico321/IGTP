@@ -1,8 +1,10 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getMachineById, getRequestsByMachine, getUsers } from '@/lib/db'
+import { getMachineById, getRequestsByMachine, getUsers, getTrustedUserIds, hasApprovedRequest } from '@/lib/db'
+import { requireUserId } from '@/lib/auth'
 import { updateRequestStatusAction } from './actions'
 import { RequestStatusBadge } from '@/app/components/StatusBadge'
+import GrantAccessForm from './GrantAccessForm'
 import type { User } from '@/lib/types'
 
 export default async function MachineRequestsPage({
@@ -11,14 +13,30 @@ export default async function MachineRequestsPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+  const userId = await requireUserId()
   const machine = await getMachineById(id)
   if (!machine) notFound()
 
-  const [requests, allUsers] = await Promise.all([
+  const isOwner = machine.ownerId === userId
+
+  const [requests, allUsers, trustedIds] = await Promise.all([
     getRequestsByMachine(id),
     getUsers(),
+    isOwner ? getTrustedUserIds(userId) : Promise.resolve([]),
   ])
   const userMap = new Map<string, User>(allUsers.map((u) => [u.id, u]))
+
+  // Get trusted users who don't already have active access (for Grant Access form)
+  let grantableUsers: { id: string; name: string; email: string }[] = []
+  if (isOwner) {
+    const checks = await Promise.all(
+      trustedIds.map(async (tid) => ({ tid, has: await hasApprovedRequest(id, tid) }))
+    )
+    const eligibleIds = new Set(checks.filter(c => !c.has).map(c => c.tid))
+    grantableUsers = allUsers
+      .filter(u => eligibleIds.has(u.id))
+      .map(u => ({ id: u.id, name: u.name, email: u.email }))
+  }
   const pending = requests.filter((r) => r.status === 'pending')
   const other = requests.filter((r) => r.status !== 'pending')
 
@@ -39,6 +57,19 @@ export default async function MachineRequestsPage({
             : `${requests.length} request${requests.length === 1 ? '' : 's'} · ${pending.length} pending`}
         </p>
       </div>
+
+      {/* Grant Access */}
+      {isOwner && (
+        <div className="mb-8 bg-card border border-border rounded-xl p-5 ring-1 ring-foreground/5">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-3">
+            Grant Access
+          </h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Give someone in your network direct access — no request needed.
+          </p>
+          <GrantAccessForm machineId={id} users={grantableUsers} />
+        </div>
+      )}
 
       {/* Empty state */}
       {requests.length === 0 && (
