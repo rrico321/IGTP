@@ -107,6 +107,18 @@ export default async function MachineDetailPage({
             </div>
           </dl>
 
+          {machine.a1111Enabled && (
+            <div className="flex flex-wrap gap-1.5 mt-4">
+              <span className={`inline-flex items-center gap-1 text-xs rounded px-2 py-0.5 font-medium ${
+                machine.a1111Available
+                  ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                  : "bg-purple-500/5 text-purple-400/50 border border-purple-500/10"
+              }`}>
+                A1111 {machine.a1111Available ? "available" : "at capacity"}
+              </span>
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-2 mt-6 pt-5 border-t border-border">
             <form action={toggleAction}>
               <button
