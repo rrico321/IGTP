@@ -111,12 +111,16 @@ async function apiPost(path: string, body: unknown) {
     headers: HEADERS,
     body: JSON.stringify(body),
   });
-  return res.json();
+  const text = await res.text();
+  if (!text) return {};
+  try { return JSON.parse(text); } catch { return { error: text }; }
 }
 
 async function apiGet(path: string) {
   const res = await fetch(`${API_URL}${path}`, { headers: HEADERS });
-  return res.json();
+  const text = await res.text();
+  if (!text) return {};
+  try { return JSON.parse(text); } catch { return { error: text }; }
 }
 
 async function dispatchNext(): Promise<GpuJob | null> {
