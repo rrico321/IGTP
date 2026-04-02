@@ -128,15 +128,19 @@ async function apiGet(path: string) {
 }
 
 async function dispatchNext(): Promise<GpuJob | null> {
-  const res = await fetch(`${API_URL}/api/jobs/dispatch`, {
-    method: "POST",
-    headers: HEADERS,
-    body: JSON.stringify({ machineId: MACHINE_ID }),
-  });
-  const text = await res.text();
-  if (!text) return null;
-  const data = JSON.parse(text);
-  return data.dispatched ? (data.job as GpuJob) : null;
+  try {
+    const res = await fetch(`${API_URL}/api/jobs/dispatch`, {
+      method: "POST",
+      headers: HEADERS,
+      body: JSON.stringify({ machineId: MACHINE_ID }),
+    });
+    const text = await res.text();
+    if (!text) return null;
+    const data = JSON.parse(text);
+    return data.dispatched ? (data.job as GpuJob) : null;
+  } catch {
+    return null;
+  }
 }
 
 async function reportSnapshot(jobId: string, metrics: {
@@ -411,8 +415,9 @@ async function pollSessions(): Promise<void> {
       await handleA1111SessionStop(session.id);
     }
   } catch (err) {
-    // Sessions endpoint may not exist yet — that's OK
-    if (String(err).includes("404")) return;
+    // Suppress network errors and 404s silently — don't spam logs
+    const msg = String(err);
+    if (msg.includes("404") || msg.includes("fetch failed") || msg.includes("TimeoutError") || msg.includes("ECONNREFUSED")) return;
     console.error("[a1111] Session poll error:", err);
   }
 }
