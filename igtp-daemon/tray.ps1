@@ -8,6 +8,8 @@ Add-Type -AssemblyName System.Drawing
 $IGTP_DIR = "$env:USERPROFILE\.igtp"
 $LOG_FILE = "$IGTP_DIR\logs\daemon.log"
 $ENV_FILE = "$IGTP_DIR\.env"
+$PID_FILE = "$IGTP_DIR\daemon.pid"
+$MAX_LOG_BYTES = 5 * 1024 * 1024  # 5 MB
 
 # ─── Load config ──────────────────────────────────────────────────────────
 $config = @{}
@@ -86,7 +88,10 @@ function Start-Daemon {
     $startInfo.CreateNoWindow = $true
     $startInfo.UseShellExecute = $false
 
-    # Set env vars
+    # Inherit current system environment, then overlay .env config
+    foreach ($entry in [System.Environment]::GetEnvironmentVariables()) {
+        $startInfo.EnvironmentVariables[$entry.Key] = $entry.Value
+    }
     foreach ($key in $config.Keys) {
         $startInfo.EnvironmentVariables[$key] = $config[$key]
     }
@@ -102,6 +107,14 @@ function Stop-Daemon {
             Start-Process "taskkill" -ArgumentList "/F /T /PID $pid" -WindowStyle Hidden -Wait
         } catch {}
     }
+    # Kill by PID file (daemon started externally)
+    if (Test-Path $PID_FILE) {
+        $pid = [int](Get-Content $PID_FILE -ErrorAction SilentlyContinue)
+        if ($pid) {
+            Start-Process "taskkill" -ArgumentList "/F /T /PID $pid" -WindowStyle Hidden -Wait -ErrorAction SilentlyContinue
+        }
+        Remove-Item $PID_FILE -Force -ErrorAction SilentlyContinue
+    }
     # Also kill any orphaned node processes running the daemon
     Get-Process -Name "node" -ErrorAction SilentlyContinue | Where-Object {
         $_.MainWindowTitle -eq "" -and $_.Path -like "*\.igtp*"
@@ -111,8 +124,21 @@ function Stop-Daemon {
 }
 
 function Test-DaemonRunning {
+    # Check our own child process
     if ($script:daemonProc -and -not $script:daemonProc.HasExited) {
         return $true
+    }
+    # Check PID file (daemon started externally via igtp start)
+    if (Test-Path $PID_FILE) {
+        $pid = [int](Get-Content $PID_FILE -ErrorAction SilentlyContinue)
+        if ($pid) {
+            $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+            if ($proc -and -not $proc.HasExited) {
+                return $true
+            }
+            # Stale PID file - clean up
+            Remove-Item $PID_FILE -Force -ErrorAction SilentlyContinue
+        }
     }
     return $false
 }
@@ -183,7 +209,19 @@ $quitItem.Add_Click({
 # ─── Status polling timer ─────────────────────────────────────────────────
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 15000  # 15 seconds
-$timer.Add_Tick({ Update-Status })
+$timer.Add_Tick({
+    Update-Status
+    # Log rotation: truncate if over 5 MB
+    if (Test-Path $LOG_FILE) {
+        $size = (Get-Item $LOG_FILE -ErrorAction SilentlyContinue).Length
+        if ($size -gt $MAX_LOG_BYTES) {
+            try {
+                $tail = Get-Content $LOG_FILE -Tail 500 -ErrorAction SilentlyContinue
+                $tail | Set-Content $LOG_FILE -ErrorAction SilentlyContinue
+            } catch {}
+        }
+    }
+})
 $timer.Start()
 
 # ─── Auto-start daemon on launch ─────────────────────────────────────────

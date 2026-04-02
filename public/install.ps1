@@ -167,7 +167,7 @@ Write-Host ""
 Write-Host "  AUTOMATIC1111 (A1111) is a popular web interface for AI image"
 Write-Host "  generation using Stable Diffusion. If you have it installed,"
 Write-Host "  trusted friends can request a remote session to use your GPU"
-Write-Host "  for generating images — the daemon handles secure tunneling."
+Write-Host "  for generating images - the daemon handles secure tunneling."
 Write-Host ""
 Write-Host "  Requirements:" -ForegroundColor Gray
 Write-Host "    - AUTOMATIC1111 installed on this PC"
@@ -226,7 +226,7 @@ if ($a1111Answer -eq "y") {
                 Write-Host "  Could not install via winget. The daemon will auto-download it on first use." -ForegroundColor Yellow
             }
         } else {
-            Write-Host "  No problem — the daemon will auto-download cloudflared when needed." -ForegroundColor Gray
+            Write-Host "  No problem - the daemon will auto-download cloudflared when needed." -ForegroundColor Gray
         }
     }
 
@@ -283,6 +283,11 @@ echo Daemon started. Logs: %LOG_FILE%
 goto end
 
 :stop
+if exist "%PID_FILE%" (
+    set /p DAEMON_PID=<"%PID_FILE%"
+    taskkill /f /t /pid %DAEMON_PID% >nul 2>&1
+    del "%PID_FILE%" >nul 2>&1
+)
 taskkill /f /fi "WINDOWTITLE eq IGTP*" >nul 2>&1
 echo Daemon stopped.
 goto end
@@ -348,7 +353,7 @@ if "%confirm%"=="y" (
 goto end
 
 :help
-echo IGTP Daemon — Share GPU power with your trust network
+echo IGTP Daemon - Share GPU power with your trust network
 echo.
 echo Commands:
 echo   igtp start           Start the daemon

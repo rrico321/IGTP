@@ -27,12 +27,16 @@
  */
 
 import { spawn, execSync, type ChildProcess } from "child_process";
-import { createWriteStream } from "fs";
+import { createWriteStream, writeFileSync } from "fs";
 import { tmpdir, platform } from "os";
 import { join } from "path";
 import { createReadStream, existsSync } from "fs";
 import { unlink, readFile } from "fs/promises";
 import { startTunnel, stopTunnel, getActiveSessionCount, getActiveSessions } from "./tunnel";
+
+// Write PID file so tray and igtp.bat can detect/kill us
+const pidPath = join(__dirname, "..", "daemon.pid");
+writeFileSync(pidPath, String(process.pid));
 
 // ─── Load .env if present ────────────────────────────────────────────────────
 
@@ -650,6 +654,8 @@ if (A1111_ENABLED) setInterval(pollSessions, POLL_INTERVAL_MS);
 // Graceful shutdown — stop all tunnels and notify API
 async function shutdown() {
   console.log("\n[igtp-daemon] Shutting down...");
+  // Remove PID file
+  try { require("fs").unlinkSync(pidPath); } catch {}
   for (const session of getActiveSessions()) {
     await apiPost(`/api/sessions/${session.sessionId}/tunnel`, {
       tunnelUrl: null, status: "ended",
