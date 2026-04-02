@@ -958,7 +958,7 @@ This guide shows you how to send a chat message to an AI model through the IGTP 
 
 Make sure you have:
 - An IGTP API key (see "How to generate an API key")
-- The ID of a machine you have access to
+- The ID of a machine you have access to (see "Finding your Machine ID and Request ID")
 - A model name available on that machine
 
 ## Chat Endpoint
@@ -1882,9 +1882,12 @@ This is a comprehensive list of all API endpoints available in IGTP. All endpoin
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | /api/jobs | List your jobs |
+| POST | /api/jobs | Submit a new job (supports text, images, and PDFs) |
 | GET | /api/jobs/:id | Get details of a specific job |
 | POST | /api/jobs/dispatch | Get the next job for a machine (used by the daemon) |
 | POST | /api/jobs/:id/snapshot | Report job completion (used by the daemon) |
+
+**POST /api/jobs** accepts: \`requestId\`, \`model\`, \`prompt\`, \`jobType\`, and optionally \`images\` (array of base64-encoded images or PDFs). See "How to use vision models and OCR via API" for details.
 
 ---
 
@@ -1928,6 +1931,155 @@ This is a comprehensive list of all API endpoints available in IGTP. All endpoin
 - Include **Content-Type: application/json** in POST/PATCH/DELETE requests
 - Endpoints used by the daemon (heartbeat, dispatch, snapshot, tunnel, models sync) are not meant for manual use
 - The base URL is **https://igtp.vercel.app**`,
+  },
+  {
+    id: 'finding-your-ids',
+    category: 'API Access',
+    title: 'Finding your Machine ID and Request ID',
+    content: `# Finding your Machine ID and Request ID
+
+Several API endpoints require a **Machine ID** or **Request ID**. Here's where to find them.
+
+## What is a Machine ID?
+
+A **Machine ID** uniquely identifies a computer that's been registered on IGTP. It looks like \`machine-1234567890\`. Every registered machine has one.
+
+### How to find it
+
+**Option 1: From the website**
+1. Go to **Browse** and click on the machine you have access to
+2. The Machine ID is shown in the URL: \`/machines/machine-1234567890\`
+3. It's also displayed on the machine detail page
+
+**Option 2: From the API**
+\`\`\`
+GET /api/machines
+Authorization: Bearer igtp_xxxx_xxxx_xxxx_xxxx
+\`\`\`
+This returns a list of machines. Each one has an \`id\` field — that's the Machine ID.
+
+## What is a Request ID?
+
+A **Request ID** identifies your approved access request to a specific machine. You need it to submit jobs. It looks like \`req-1234567890\`.
+
+### How to find it
+
+**Option 1: From the website**
+1. Go to **Settings > My Requests**
+2. Each approved request shows its ID
+
+**Option 2: From the API**
+\`\`\`
+GET /api/requests
+Authorization: Bearer igtp_xxxx_xxxx_xxxx_xxxx
+\`\`\`
+Look for a request with \`"status": "approved"\` — its \`id\` field is your Request ID.
+
+## Quick Summary
+
+| ID | What it is | Where to find it |
+|---|---|---|
+| Machine ID | The computer you want to use | Browse page URL, or \`GET /api/machines\` |
+| Request ID | Your approved access to that machine | My Requests page, or \`GET /api/requests\` |
+
+> **Tip:** You need an approved access request before you can submit any jobs. If you don't have one, go to Browse, find a machine, and click "Request Access".`,
+  },
+  {
+    id: 'api-vision-ocr',
+    category: 'API Access',
+    title: 'How to use vision models and OCR via API',
+    content: `# How to use vision models and OCR via API
+
+IGTP supports **vision models** — AI models that can read and understand images. This is useful for:
+
+- **OCR (Optical Character Recognition)** — extracting text from scanned documents, PDFs, and photos
+- **Image analysis** — describing what's in a photo, reading diagrams, analyzing screenshots
+
+## Before You Start
+
+Make sure:
+- The machine you're using has a vision model installed (e.g. \`ahmgam/chandra-ocr-2\`, \`llava\`, \`moondream\`)
+- You have an API key and an approved access request
+- You know your **Request ID** (see "Finding your Machine ID and Request ID")
+
+## Sending Images
+
+Add an \`images\` array to your job request. Each image should be a **base64-encoded string** or a **data URI**.
+
+### Jobs Endpoint
+
+    POST /api/jobs
+
+### Request Format
+
+    {
+      "requestId": "req-1234567890",
+      "model": "ahmgam/chandra-ocr-2",
+      "prompt": "Extract all text from this document",
+      "jobType": "chat",
+      "images": ["data:image/png;base64,iVBORw0KGgo..."]
+    }
+
+## Sending PDFs
+
+You can send PDF files directly — IGTP automatically converts each page to an image before sending it to the AI model.
+
+    {
+      "requestId": "req-1234567890",
+      "model": "ahmgam/chandra-ocr-2",
+      "prompt": "Extract all text from this PDF",
+      "jobType": "chat",
+      "images": ["data:application/pdf;base64,JVBERi0xLjQ..."]
+    }
+
+> A multi-page PDF will be split into one image per page automatically.
+
+## Example: OCR a PDF with curl
+
+### Step 1: Convert your file to base64
+
+**Mac/Linux:**
+
+    base64 -i document.pdf | tr -d '\\n' > encoded.txt
+
+**Windows (PowerShell):**
+
+    [Convert]::ToBase64String([IO.File]::ReadAllBytes("document.pdf")) | Set-Content encoded.txt
+
+### Step 2: Send the request
+
+    curl -X POST https://igtp.vercel.app/api/jobs \\
+      -H "Authorization: Bearer igtp_xxxx_xxxx_xxxx_xxxx" \\
+      -H "Content-Type: application/json" \\
+      -d '{
+        "requestId": "req-1234567890",
+        "model": "ahmgam/chandra-ocr-2",
+        "prompt": "Extract all text from this document",
+        "jobType": "chat",
+        "images": ["data:application/pdf;base64,'$(cat encoded.txt)'"]
+      }'
+
+### Step 3: Check the result
+
+    curl https://igtp.vercel.app/api/jobs/JOB_ID_HERE \\
+      -H "Authorization: Bearer igtp_xxxx_xxxx_xxxx_xxxx"
+
+The \`outputLog\` field will contain the extracted text.
+
+## Supported File Types
+
+| Type | Format | Max Size |
+|---|---|---|
+| PNG | \`image/png\` | 20 MB |
+| JPEG | \`image/jpeg\` | 20 MB |
+| WebP | \`image/webp\` | 20 MB |
+| PDF | \`application/pdf\` | 50 MB |
+
+## Tips
+
+- **Multiple images:** You can send multiple images in the \`images\` array — the model will see all of them
+- **Prompt matters:** Tell the model what you want — "extract all text", "describe this image", "read the table in this document"
+- **Model choice:** For OCR, use a dedicated model like \`ahmgam/chandra-ocr-2\`. For general image understanding, \`llava\` or \`moondream\` work well`,
   },
 ]
 
