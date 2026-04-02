@@ -1,4 +1,4 @@
-# IGTP Daemon — System Tray App
+# IGTP Daemon - System Tray App
 # Runs the daemon in the background and shows a tray icon with status/controls.
 # Launch with: powershell -WindowStyle Hidden -File tray.ps1
 
@@ -41,7 +41,7 @@ $iconBusy = New-TrayIcon "G" ([System.Drawing.Color]::FromArgb(255, 180, 50))
 # ─── Tray setup ───────────────────────────────────────────────────────────
 $tray = New-Object System.Windows.Forms.NotifyIcon
 $tray.Icon = $iconOffline
-$tray.Text = "IGTP Daemon — Starting..."
+$tray.Text = "IGTP Daemon - Starting..."
 $tray.Visible = $true
 
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
@@ -140,13 +140,13 @@ function Update-Status {
     if ($running) {
         $statusItem.Text = "Status: Online"
         $tray.Icon = $iconOnline
-        $tray.Text = "IGTP Daemon — Online"
+        $tray.Text = "IGTP Daemon - Online"
         $startItem.Enabled = $false
         $stopItem.Enabled = $true
     } else {
         $statusItem.Text = "Status: Stopped"
         $tray.Icon = $iconOffline
-        $tray.Text = "IGTP Daemon — Stopped"
+        $tray.Text = "IGTP Daemon - Stopped"
         $startItem.Enabled = $true
         $stopItem.Enabled = $false
     }
