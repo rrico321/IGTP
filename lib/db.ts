@@ -87,10 +87,14 @@ export async function deleteMachine(id: string, ownerId: string): Promise<boolea
   const check = await sql`SELECT id FROM machines WHERE id = ${id} AND owner_id = ${ownerId}`;
   if (check.length === 0) return false;
 
-  // Clean up related records (foreign key constraints)
+  // Clean up related records (foreign key constraints, order matters)
   await sql`DELETE FROM a1111_sessions WHERE machine_id = ${id}`;
   await sql`DELETE FROM machine_models WHERE machine_id = ${id}`;
+  await sql`DELETE FROM job_usage_snapshots WHERE job_id IN (SELECT id FROM gpu_jobs WHERE machine_id = ${id})`;
+  await sql`DELETE FROM conversation_messages WHERE conversation_id IN (SELECT id FROM conversations WHERE machine_id = ${id})`;
+  await sql`DELETE FROM conversations WHERE machine_id = ${id}`;
   await sql`DELETE FROM gpu_jobs WHERE machine_id = ${id}`;
+  await sql`DELETE FROM notifications WHERE request_id IN (SELECT id FROM access_requests WHERE machine_id = ${id})`;
   await sql`DELETE FROM access_requests WHERE machine_id = ${id}`;
   await sql`DELETE FROM machines WHERE id = ${id}`;
   return true;
