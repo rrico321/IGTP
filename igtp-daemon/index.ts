@@ -668,3 +668,11 @@ process.on("SIGTERM", shutdown);
 if (IS_WIN) {
   process.on("SIGHUP", shutdown);
 }
+
+// Safety net: prevent unhandled errors from crashing the daemon
+process.on("unhandledRejection", (err) => {
+  console.error("[igtp-daemon] Unhandled rejection (non-fatal):", err);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[igtp-daemon] Uncaught exception (non-fatal):", err);
+});
