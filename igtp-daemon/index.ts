@@ -124,7 +124,14 @@ async function apiGet(path: string) {
 }
 
 async function dispatchNext(): Promise<GpuJob | null> {
-  const data = await apiPost("/api/jobs/dispatch", { machineId: MACHINE_ID });
+  const res = await fetch(`${API_URL}/api/jobs/dispatch`, {
+    method: "POST",
+    headers: HEADERS,
+    body: JSON.stringify({ machineId: MACHINE_ID }),
+  });
+  const text = await res.text();
+  if (!text) return null;
+  const data = JSON.parse(text);
   return data.dispatched ? (data.job as GpuJob) : null;
 }
 
