@@ -100,6 +100,7 @@ interface GpuJob {
   vramLimitGb: number | null;
   cpuLimitCores: number | null;
   ramLimitGb: number | null;
+  images: string | null;
 }
 
 // ─── API helpers ─────────────────────────────────────────────────────────────
@@ -413,19 +414,37 @@ async function executeOllamaJob(job: GpuJob): Promise<void> {
     ? "/api/chat"
     : "/api/generate";
 
+  // Parse images if present (stored as JSON array of base64 strings)
+  let imageArray: string[] | undefined;
+  if (job.images) {
+    try {
+      imageArray = JSON.parse(job.images);
+    } catch {
+      imageArray = undefined;
+    }
+  }
+
   let body: Record<string, unknown>;
   if (isEmbedding) {
     body = { model: job.model, input: job.prompt };
   } else if (job.conversationId) {
-    let messages: Array<{ role: string; content: string }>;
+    let messages: Array<{ role: string; content: string; images?: string[] }>;
     try {
       messages = JSON.parse(job.command);
     } catch {
       messages = [{ role: "user", content: job.prompt ?? "" }];
     }
+    // Attach images to the last user message if present
+    if (imageArray && imageArray.length > 0) {
+      const lastUserMsg = [...messages].reverse().find(m => m.role === "user");
+      if (lastUserMsg) lastUserMsg.images = imageArray;
+    }
     body = { model: job.model, messages, stream: false };
   } else {
     body = { model: job.model, prompt: job.prompt, stream: false };
+    if (imageArray && imageArray.length > 0) {
+      body.images = imageArray;
+    }
   }
 
   try {

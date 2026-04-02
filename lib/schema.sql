@@ -76,8 +76,11 @@ CREATE TABLE IF NOT EXISTS gpu_jobs (
   started_at        TIMESTAMPTZ,
   completed_at      TIMESTAMPTZ,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  images            TEXT,
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE gpu_jobs ADD COLUMN IF NOT EXISTS images TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_gpu_jobs_machine    ON gpu_jobs(machine_id, status);
 CREATE INDEX IF NOT EXISTS idx_gpu_jobs_requester  ON gpu_jobs(requester_id);
