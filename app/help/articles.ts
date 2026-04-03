@@ -1235,7 +1235,7 @@ Yes — they would need to send you a new friend request, and you would need to 
   {
     id: 'how-to-invite-someone',
     category: 'Trust Network',
-    title: "How to invite someone who isn\\'t on IGTP yet",
+    title: "How to invite someone who isn't on IGTP yet",
     content: `# How to invite someone who isn't on IGTP yet
 
 IGTP is invitation-only. If you want to bring a friend onto the platform, you can invite them by email.
@@ -1397,7 +1397,7 @@ There's no automatic reminder system. If your request has been pending for a whi
   {
     id: 'daemon-wont-start',
     category: 'Troubleshooting',
-    title: "The daemon won\\'t start",
+    title: "The daemon won't start",
     content: `# The daemon won't start
 
 If you run **~/.igtp/igtp start** and the daemon doesn't come online, here's how to diagnose and fix it.
@@ -1488,7 +1488,7 @@ Look for error messages about connections or authentication.`,
   {
     id: 'cant-see-any-models',
     category: 'Troubleshooting',
-    title: "I can\\'t see any models",
+    title: "I can't see any models",
     content: `# I can't see any models
 
 If you try to start a new conversation and see no models available, here's what might be happening.
