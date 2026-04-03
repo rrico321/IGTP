@@ -7,12 +7,14 @@
  * Each tunnel gets a random URL like: https://verb-noun-adjective.trycloudflare.com
  */
 
-import { spawn, type ChildProcess } from "child_process";
+import { spawn, execSync, type ChildProcess } from "child_process";
 import { platform, arch, tmpdir } from "os";
 import { join } from "path";
-import { existsSync, chmodSync, createWriteStream } from "fs";
+import { existsSync, chmodSync, createWriteStream, writeFileSync, readFileSync, unlinkSync } from "fs";
 import { mkdir } from "fs/promises";
 import { pipeline } from "stream/promises";
+
+const TUNNEL_PIDS_FILE = join(__dirname, "..", "tunnel-pids.json");
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -27,6 +29,34 @@ export interface TunnelSession {
 // ─── State ───────────────────────────────────────────────────────────────────
 
 const activeSessions = new Map<string, TunnelSession>();
+
+// ─── Tunnel PID persistence (survive daemon crashes) ─────────────────────────
+
+function saveTunnelPids(): void {
+  const pids: Record<string, number> = {};
+  for (const [id, s] of activeSessions) {
+    if (s.process.pid) pids[id] = s.process.pid;
+  }
+  try { writeFileSync(TUNNEL_PIDS_FILE, JSON.stringify(pids)); } catch {}
+}
+
+export function killOrphanedTunnels(): void {
+  if (!existsSync(TUNNEL_PIDS_FILE)) return;
+  try {
+    const pids: Record<string, number> = JSON.parse(readFileSync(TUNNEL_PIDS_FILE, "utf-8"));
+    for (const [sessionId, pid] of Object.entries(pids)) {
+      console.log(`[tunnel] Killing orphaned cloudflared (session ${sessionId}, pid ${pid})`);
+      try {
+        if (platform() === "win32") {
+          execSync(`taskkill /F /T /PID ${pid}`, { stdio: "pipe" });
+        } else {
+          process.kill(pid, "SIGKILL");
+        }
+      } catch {}
+    }
+    unlinkSync(TUNNEL_PIDS_FILE);
+  } catch {}
+}
 
 // ─── Cloudflared binary management ───────────────────────────────────────────
 
@@ -132,6 +162,7 @@ export async function startTunnel(
   };
 
   activeSessions.set(sessionId, session);
+  saveTunnelPids();
 
   // Parse tunnel URL from cloudflared output
   const urlPromise = new Promise<string>((resolve, reject) => {
@@ -207,6 +238,7 @@ export function stopTunnel(sessionId: string): boolean {
   } catch {}
 
   activeSessions.delete(sessionId);
+  saveTunnelPids();
   console.log(`[tunnel] Session ${sessionId} stopped`);
   return true;
 }

@@ -32,7 +32,7 @@ import { tmpdir, platform } from "os";
 import { join } from "path";
 import { createReadStream, existsSync } from "fs";
 import { unlink, readFile } from "fs/promises";
-import { startTunnel, stopTunnel, getActiveSessionCount, getActiveSessions } from "./tunnel";
+import { startTunnel, stopTunnel, getActiveSessionCount, getActiveSessions, killOrphanedTunnels } from "./tunnel";
 
 // Write PID file so tray and igtp.bat can detect/kill us
 const pidPath = join(__dirname, "..", "daemon.pid");
@@ -258,7 +258,12 @@ async function sendHeartbeat(): Promise<void> {
       console.log(`[igtp-daemon] Heartbeat OK (a1111: ${A1111_ENABLED}, available: ${a1111Available}, tunnels: ${activeTunnels.length})`);
     }
   } catch (err) {
-    console.error("[igtp-daemon] Heartbeat error:", err);
+    const msg = String(err);
+    if (msg.includes("fetch failed") || msg.includes("TimeoutError") || msg.includes("ECONNREFUSED")) {
+      console.error("[igtp-daemon] Heartbeat: API unreachable");
+    } else {
+      console.error("[igtp-daemon] Heartbeat error:", err);
+    }
   }
 }
 
@@ -281,7 +286,12 @@ async function syncModels(): Promise<void> {
     await apiPost(`/api/machines/${MACHINE_ID}/models`, { models });
     console.log(`[igtp-daemon] Synced ${models.length} models`);
   } catch (err) {
-    console.error("[igtp-daemon] Model sync error:", err);
+    const msg = String(err);
+    if (msg.includes("fetch failed") || msg.includes("TimeoutError") || msg.includes("ECONNREFUSED")) {
+      console.error("[igtp-daemon] Model sync: Ollama unreachable");
+    } else {
+      console.error("[igtp-daemon] Model sync error:", err);
+    }
   }
 }
 
@@ -643,6 +653,17 @@ async function cleanupStaleSessions() {
   } catch {}
 }
 
+// Safety net: prevent unhandled errors from crashing the daemon (before any async calls)
+process.on("unhandledRejection", (err) => {
+  console.error("[igtp-daemon] Unhandled rejection (non-fatal):", err);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[igtp-daemon] Uncaught exception (non-fatal):", err);
+});
+
+// Kill any orphaned cloudflared tunnels from a previous crash
+killOrphanedTunnels();
+
 // Immediate first sync
 cleanupStaleSessions();
 sendHeartbeat();
@@ -656,7 +677,7 @@ setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
 setInterval(syncModels, HEARTBEAT_INTERVAL_MS);
 if (A1111_ENABLED) setInterval(pollSessions, POLL_INTERVAL_MS);
 
-// Graceful shutdown — stop all tunnels and notify API
+// Graceful shutdown - stop all tunnels and notify API
 async function shutdown() {
   console.log("\n[igtp-daemon] Shutting down...");
   // Remove PID file
@@ -679,11 +700,3 @@ process.on("SIGTERM", shutdown);
 if (IS_WIN) {
   process.on("SIGHUP", shutdown);
 }
-
-// Safety net: prevent unhandled errors from crashing the daemon
-process.on("unhandledRejection", (err) => {
-  console.error("[igtp-daemon] Unhandled rejection (non-fatal):", err);
-});
-process.on("uncaughtException", (err) => {
-  console.error("[igtp-daemon] Uncaught exception (non-fatal):", err);
-});

@@ -224,8 +224,12 @@ $timer.Add_Tick({
 })
 $timer.Start()
 
-# ─── Auto-start daemon on launch ─────────────────────────────────────────
-Start-Daemon
+# ─── Auto-start daemon on launch (only if not already running) ────────────
+if (-not (Test-DaemonRunning)) {
+    Start-Daemon
+} else {
+    Update-Status
+}
 
 # ─── Run message loop ─────────────────────────────────────────────────────
 [System.Windows.Forms.Application]::Run()
