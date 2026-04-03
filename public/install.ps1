@@ -314,6 +314,8 @@ set GH_RAW=https://raw.githubusercontent.com/rrico321/IGTP/main/igtp-daemon
 curl -fsSL "%GH_RAW%/index.ts" -o "%IGTP_DIR%\daemon\index.ts"
 curl -fsSL "%GH_RAW%/tunnel.ts" -o "%IGTP_DIR%\daemon\tunnel.ts" 2>nul
 curl -fsSL "%GH_RAW%/package.json" -o "%IGTP_DIR%\daemon\package.json"
+curl -fsSL "%GH_RAW%/tray.ps1" -o "%IGTP_DIR%\tray.ps1" 2>nul
+curl -fsSL "%GH_RAW%/igtp.bat" -o "%IGTP_DIR%\igtp.bat" 2>nul
 cd /d "%IGTP_DIR%\daemon"
 npm install --silent 2>nul
 echo Daemon updated. Restart with: igtp stop ^&^& igtp start
