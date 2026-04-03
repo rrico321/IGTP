@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { authenticateRequest } from "@/lib/auth";
-import { getModelsForMachine, createJob, getRequestsByRequester } from "@/lib/db";
+import { getModelsForMachine, createJob, getRequestsByRequester, getMachineById, getApprovedRequest, createRequest, updateRequest } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   const userId = await authenticateRequest(request);
@@ -12,14 +12,38 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "machineId, model, and input are required" }, { status: 400 });
   }
 
-  // Verify user has approved, non-expired access to this machine
-  const requests = await getRequestsByRequester(userId);
-  const approved = requests.find((r) =>
-    r.machineId === machineId && r.status === "approved" &&
-    (!r.expiresAt || new Date(r.expiresAt) > new Date())
-  );
-  if (!approved) {
-    return Response.json({ error: "No approved access to this machine (may have expired)" }, { status: 403 });
+  const machine = await getMachineById(machineId);
+  if (!machine) {
+    return Response.json({ error: "Machine not found" }, { status: 404 });
+  }
+
+  let requestId: string;
+  const isOwner = machine.ownerId === userId;
+
+  if (isOwner) {
+    let existing = await getApprovedRequest(machineId, userId);
+    if (!existing) {
+      const req = await createRequest({
+        machineId,
+        requesterId: userId,
+        purpose: "Owner access",
+        estimatedHours: 8760,
+        ownerNote: "",
+      });
+      await updateRequest(req.id, { status: "approved" });
+      existing = (await getApprovedRequest(machineId, userId))!;
+    }
+    requestId = existing.id;
+  } else {
+    const requests = await getRequestsByRequester(userId);
+    const approved = requests.find((r) =>
+      r.machineId === machineId && r.status === "approved" &&
+      (!r.expiresAt || new Date(r.expiresAt) > new Date())
+    );
+    if (!approved) {
+      return Response.json({ error: "No approved access to this machine (may have expired)" }, { status: 403 });
+    }
+    requestId = approved.id;
   }
 
   // Verify model exists on machine and is an embedding model
@@ -32,7 +56,7 @@ export async function POST(request: NextRequest) {
   const job = await createJob({
     machineId,
     requesterId: userId,
-    requestId: approved.id,
+    requestId,
     command: input,
     model,
     prompt: input,
