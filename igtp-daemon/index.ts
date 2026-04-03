@@ -447,8 +447,10 @@ async function executeOllamaJob(job: GpuJob): Promise<void> {
   // Parse images if present (stored as JSON array of base64 strings or data URIs)
   let imageArray: string[] | undefined;
   if (job.images) {
+    console.log(`[igtp-daemon] Job ${job.id} has images field, length: ${job.images.length}, starts with: ${job.images.substring(0, 80)}`);
     try {
       const rawImages: string[] = JSON.parse(job.images);
+      console.log(`[igtp-daemon] Parsed ${rawImages.length} image(s), first 80 chars: ${rawImages[0]?.substring(0, 80)}`);
       const processed: string[] = [];
       for (const raw of rawImages) {
         // Strip data URI prefix if present
@@ -456,6 +458,7 @@ async function executeOllamaJob(job: GpuJob): Promise<void> {
         const mime = match ? match[1] : "image/png";
         const base64 = match ? match[2] : raw;
 
+        console.log(`[igtp-daemon] Image mime: ${mime}, base64 starts: ${base64.substring(0, 20)}`);
         // Convert PDFs to images
         if (mime === "application/pdf" || base64.startsWith("JVBERi")) {
           console.log(`[igtp-daemon] Converting PDF to images for job ${job.id}`);
@@ -475,7 +478,8 @@ async function executeOllamaJob(job: GpuJob): Promise<void> {
         }
       }
       imageArray = processed.length > 0 ? processed : undefined;
-    } catch {
+    } catch (outerErr) {
+      console.error(`[igtp-daemon] Image parsing failed for job ${job.id}:`, String(outerErr));
       imageArray = undefined;
     }
   }
