@@ -250,6 +250,10 @@ A1111_SESSION_MAX_MINS=$A1111_SESSION_MAX_MINS
 if (-not [string]::IsNullOrWhiteSpace($A1111_LAUNCH_CMD)) {
     $envContent += "`nA1111_LAUNCH_CMD=$A1111_LAUNCH_CMD"
 }
+# vLLM config (optional — users can add these later)
+$envContent += "`n# vLLM backend (optional - for models like chandra-ocr-2 that need Docker/vLLM)"
+$envContent += "`n# VLLM_URL=http://localhost:8100"
+$envContent += "`n# VLLM_MODELS=datalab-to/chandra-ocr-2"
 $envContent | Out-File -FilePath "$IGTP_DIR\.env" -Encoding ascii
 
 Write-Host "[OK] Config saved to $IGTP_DIR\.env" -ForegroundColor Green

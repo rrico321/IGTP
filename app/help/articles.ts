@@ -1998,7 +1998,7 @@ IGTP supports **vision models** — AI models that can read and understand image
 ## Before You Start
 
 Make sure:
-- The machine you're using has a vision model installed (e.g. \`ahmgam/chandra-ocr-2\`, \`llava\`, \`moondream\`)
+- The machine you're using has a vision model installed (e.g. \`datalab-to/chandra-ocr-2\`, \`llava\`, \`moondream\`)
 - You have an API key and an approved access request
 - You know your **Request ID** (see "Finding your Machine ID and Request ID")
 
@@ -2014,7 +2014,7 @@ Add an \`images\` array to your job request. Each image should be a **base64-enc
 
     {
       "requestId": "req-1234567890",
-      "model": "ahmgam/chandra-ocr-2",
+      "model": "datalab-to/chandra-ocr-2",
       "prompt": "Extract all text from this document",
       "jobType": "chat",
       "images": ["data:image/png;base64,iVBORw0KGgo..."]
@@ -2026,7 +2026,7 @@ You can send PDF files directly — IGTP automatically converts each page to an 
 
     {
       "requestId": "req-1234567890",
-      "model": "ahmgam/chandra-ocr-2",
+      "model": "datalab-to/chandra-ocr-2",
       "prompt": "Extract all text from this PDF",
       "jobType": "chat",
       "images": ["data:application/pdf;base64,JVBERi0xLjQ..."]
@@ -2053,7 +2053,7 @@ You can send PDF files directly — IGTP automatically converts each page to an 
       -H "Content-Type: application/json" \\
       -d '{
         "requestId": "req-1234567890",
-        "model": "ahmgam/chandra-ocr-2",
+        "model": "datalab-to/chandra-ocr-2",
         "prompt": "Extract all text from this document",
         "jobType": "chat",
         "images": ["data:application/pdf;base64,'$(cat encoded.txt)'"]
@@ -2073,13 +2073,107 @@ The \`outputLog\` field will contain the extracted text.
 | PNG | \`image/png\` | 20 MB |
 | JPEG | \`image/jpeg\` | 20 MB |
 | WebP | \`image/webp\` | 20 MB |
-| PDF | \`application/pdf\` | 50 MB |
+| PDF | \`application/pdf\` | 100 MB |
 
 ## Tips
 
 - **Multiple images:** You can send multiple images in the \`images\` array — the model will see all of them
 - **Prompt matters:** Tell the model what you want — "extract all text", "describe this image", "read the table in this document"
-- **Model choice:** For OCR, use a dedicated model like \`ahmgam/chandra-ocr-2\`. For general image understanding, \`llava\` or \`moondream\` work well`,
+- **Model choice:** For OCR, use \`datalab-to/chandra-ocr-2\` (requires vLLM backend — see "Setting up vLLM for advanced vision models"). For general image understanding, \`llava\` or \`moondream\` work well with Ollama`,
+  },
+  {
+    id: 'vllm-docker-setup',
+    category: 'Sharing Your Machine',
+    title: 'Setting up vLLM for advanced vision models',
+    content: `# Setting up vLLM for advanced vision models
+
+Some AI models (like **chandra-ocr-2** for OCR) don't work with Ollama because they need special vision components that Ollama community builds don't include. For these models, IGTP supports a second backend called **vLLM**, which runs inside Docker.
+
+## What is vLLM?
+
+**vLLM** is a high-performance AI model server. It runs the original model weights at full quality (no quantization needed) and provides an API that the IGTP daemon can talk to alongside Ollama.
+
+## Requirements
+
+- **Docker Desktop** installed and running
+- **NVIDIA GPU** with updated drivers
+- **Enough VRAM** for the model (chandra-ocr-2 needs ~20GB)
+
+> **Important:** vLLM and Ollama share your GPU. With a 24GB card, you can only run one at a time. The daemon handles routing automatically - Ollama models go to Ollama, vLLM models go to vLLM.
+
+## Step 1: Install Docker Desktop
+
+Download from docker.com/products/docker-desktop and install it. Enable the WSL2 backend when prompted. Restart your PC if needed.
+
+## Step 2: Verify GPU access in Docker
+
+Open PowerShell and run:
+
+    docker run --rm --gpus all nvidia/cuda:12.4.0-base-ubuntu22.04 nvidia-smi
+
+You should see your GPU listed. If you get an error about --gpus, you may need to install the NVIDIA Container Toolkit.
+
+## Step 3: Start vLLM with chandra-ocr-2
+
+First, free your GPU by stopping Ollama:
+
+    ollama stop glm-4.7-flash
+    taskkill /F /IM ollama.exe
+
+Then start the vLLM container:
+
+    docker run -d --name chandra-ocr --gpus all -p 8100:8000 --shm-size=4g --restart=unless-stopped vllm/vllm-openai:latest --model datalab-to/chandra-ocr-2 --trust-remote-code --max-model-len 16384 --gpu-memory-utilization 0.9
+
+This downloads ~15GB on first run. Monitor startup with:
+
+    docker logs -f chandra-ocr
+
+Wait until you see "Application startup complete" (can take 5-10 minutes).
+
+## Step 4: Configure the daemon
+
+Add these lines to your .env file (at %USERPROFILE%\\.igtp\\.env):
+
+    VLLM_URL=http://localhost:8100
+    VLLM_MODELS=datalab-to/chandra-ocr-2
+
+Then restart the daemon:
+
+    igtp stop
+    igtp start
+
+Check the logs - you should see:
+
+    vLLM: http://localhost:8100 (models: datalab-to/chandra-ocr-2)
+
+## Step 5: Test it
+
+Send a test image via the API (see "How to use vision models and OCR via API").
+
+## Managing vLLM
+
+| Command | What it does |
+|---|---|
+| docker stop chandra-ocr | Stop vLLM (frees GPU for Ollama) |
+| docker start chandra-ocr | Start vLLM again |
+| docker logs chandra-ocr | View vLLM logs |
+| docker rm chandra-ocr | Remove the container entirely |
+
+## Switching between Ollama and vLLM
+
+With a single GPU, you need to stop one to use the other:
+
+**To use Ollama models (chat, embeddings):**
+
+    docker stop chandra-ocr
+    ollama serve
+
+**To use vLLM models (OCR):**
+
+    taskkill /F /IM ollama.exe
+    docker start chandra-ocr
+
+The IGTP daemon handles routing automatically - it knows which models go to which backend based on the VLLM_MODELS setting.`,
   },
 ]
 
