@@ -1,6 +1,6 @@
 {
   "name": "igtp-daemon",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "GPU workload execution daemon for IGTP machines",
   "main": "dist/index.js",
   "scripts": {

@@ -466,8 +466,9 @@ async function executeOllamaJob(job: GpuJob): Promise<void> {
               processed.push(Buffer.from(page).toString("base64"));
             }
           } catch (err) {
-            console.error(`[igtp-daemon] PDF conversion failed for job ${job.id}:`, err);
-            processed.push(base64); // Fall back to raw
+            console.error(`[igtp-daemon] PDF conversion failed for job ${job.id}:`, String(err));
+            await reportCompletion(job.id, "failed", 1, null, `PDF conversion failed: ${String(err)}`);
+            return;
           }
         } else {
           processed.push(base64);
