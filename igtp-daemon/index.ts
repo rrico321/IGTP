@@ -67,6 +67,12 @@ const SNAPSHOT_INTERVAL_MS = Number(process.env.SNAPSHOT_INTERVAL_MS ?? 30_000);
 const HEARTBEAT_INTERVAL_MS = Number(process.env.HEARTBEAT_INTERVAL_MS ?? 60_000);
 const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://localhost:11434";
 
+// vLLM config (OpenAI-compatible backend for specific models)
+const VLLM_URL = process.env.VLLM_URL ?? "http://localhost:8100";
+const VLLM_MODELS = new Set(
+  (process.env.VLLM_MODELS ?? "").split(",").map(s => s.trim()).filter(Boolean)
+);
+
 // A1111 config
 const A1111_ENABLED = process.env.A1111_ENABLED === "true";
 const A1111_URL = (process.env.A1111_URL ?? "http://localhost:7860").replace(/\/+$/, "");
@@ -283,6 +289,19 @@ async function syncModels(): Promise<void> {
       sizeBytes: m.size,
     }));
 
+    // Also include vLLM models
+    if (VLLM_MODELS.size > 0) {
+      try {
+        const vllmRes = await fetch(`${VLLM_URL}/v1/models`);
+        if (vllmRes.ok) {
+          const vllmData = await vllmRes.json();
+          for (const m of vllmData.data ?? []) {
+            models.push({ name: m.id, type: "chat", sizeBytes: 0 });
+          }
+        }
+      } catch {}
+    }
+
     await apiPost(`/api/machines/${MACHINE_ID}/models`, { models });
     console.log(`[igtp-daemon] Synced ${models.length} models`);
   } catch (err) {
@@ -447,10 +466,8 @@ async function executeOllamaJob(job: GpuJob): Promise<void> {
   // Parse images if present (stored as JSON array of base64 strings or data URIs)
   let imageArray: string[] | undefined;
   if (job.images) {
-    console.log(`[igtp-daemon] Job ${job.id} has images field, length: ${job.images.length}, starts with: ${job.images.substring(0, 80)}`);
     try {
       const rawImages: string[] = JSON.parse(job.images);
-      console.log(`[igtp-daemon] Parsed ${rawImages.length} image(s), first 80 chars: ${rawImages[0]?.substring(0, 80)}`);
       const processed: string[] = [];
       for (const raw of rawImages) {
         // Strip data URI prefix if present
@@ -458,7 +475,6 @@ async function executeOllamaJob(job: GpuJob): Promise<void> {
         const mime = match ? match[1] : "image/png";
         const base64 = match ? match[2] : raw;
 
-        console.log(`[igtp-daemon] Image mime: ${mime}, base64 starts: ${base64.substring(0, 20)}`);
         // Convert PDFs to images
         if (mime === "application/pdf" || base64.startsWith("JVBERi")) {
           console.log(`[igtp-daemon] Converting PDF to images for job ${job.id}`);
@@ -557,6 +573,81 @@ async function executeOllamaJob(job: GpuJob): Promise<void> {
   }
 }
 
+// ─── vLLM execution (OpenAI-compatible) ──────────────────────────────────────
+
+async function executeVllmJob(job: GpuJob): Promise<void> {
+  console.log(`[igtp-daemon] vLLM job ${job.id}: ${job.model}`);
+
+  // Parse images
+  let images: string[] = [];
+  if (job.images) {
+    try {
+      const rawImages: string[] = JSON.parse(job.images);
+      for (const raw of rawImages) {
+        const match = raw.match(/^data:([^;]+);base64,([\s\S]+)$/);
+        const mime = match ? match[1] : "image/png";
+        const base64 = match ? match[2] : raw;
+
+        if (mime === "application/pdf" || base64.startsWith("JVBERi")) {
+          console.log(`[igtp-daemon] Converting PDF to images for vLLM job ${job.id}`);
+          try {
+            const { pdf } = await import("pdf-to-img");
+            const buffer = Buffer.from(base64, "base64");
+            for await (const page of await pdf(buffer, { scale: 2 })) {
+              images.push(`data:image/png;base64,${Buffer.from(page).toString("base64")}`);
+            }
+          } catch (err) {
+            console.error(`[igtp-daemon] PDF conversion failed for job ${job.id}:`, String(err));
+            await reportCompletion(job.id, "failed", 1, null, `PDF conversion failed: ${String(err)}`);
+            return;
+          }
+        } else {
+          images.push(`data:image/png;base64,${base64}`);
+        }
+      }
+    } catch {}
+  }
+
+  // Build OpenAI-format messages
+  const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
+  for (const img of images) {
+    content.push({ type: "image_url", image_url: { url: img } });
+  }
+  content.push({ type: "text", text: job.prompt ?? job.command });
+
+  const messages = [{ role: "user", content }];
+
+  try {
+    const res = await fetch(`${VLLM_URL}/v1/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: job.model, messages, max_tokens: 4096 }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`[igtp-daemon] vLLM error for job ${job.id}: ${errText}`);
+      await reportCompletion(job.id, "failed", 1, null, `vLLM error: ${errText}`);
+      return;
+    }
+
+    const data = await res.json();
+    const outputText = data.choices?.[0]?.message?.content ?? "";
+    const usage = data.usage ?? {};
+    const tokens = {
+      promptTokens: usage.prompt_tokens ?? 0,
+      completionTokens: usage.completion_tokens ?? 0,
+      totalTokens: usage.total_tokens ?? 0,
+    };
+
+    await reportCompletion(job.id, "completed", 0, null, outputText, tokens);
+    console.log(`[igtp-daemon] vLLM job ${job.id} completed`);
+  } catch (err) {
+    console.error(`[igtp-daemon] vLLM job ${job.id} failed:`, err);
+    await reportCompletion(job.id, "failed", 1, null, `Error: ${err}`).catch(() => {});
+  }
+}
+
 // ─── Job execution ────────────────────────────────────────────────────────────
 
 async function executeJob(job: GpuJob): Promise<void> {
@@ -636,7 +727,9 @@ async function poll() {
     if (!job) return;
 
     busy = true;
-    if (job.model) {
+    if (job.model && VLLM_MODELS.has(job.model)) {
+      await executeVllmJob(job);
+    } else if (job.model) {
       await executeOllamaJob(job);
     } else {
       await executeJob(job);
@@ -656,6 +749,9 @@ console.log(`[igtp-daemon]   API: ${API_URL}`);
 console.log(`[igtp-daemon]   Poll interval: ${POLL_INTERVAL_MS}ms`);
 console.log(`[igtp-daemon]   Heartbeat interval: ${HEARTBEAT_INTERVAL_MS}ms`);
 console.log(`[igtp-daemon]   Ollama: ${OLLAMA_URL}`);
+if (VLLM_MODELS.size > 0) {
+  console.log(`[igtp-daemon]   vLLM: ${VLLM_URL} (models: ${[...VLLM_MODELS].join(", ")})`);
+}
 if (A1111_ENABLED) {
   console.log(`[igtp-daemon]   A1111: ${A1111_URL} (max ${A1111_MAX_SESSIONS} session(s), ${A1111_SESSION_MAX_MINS}min each)`);
 } else {
