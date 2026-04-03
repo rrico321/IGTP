@@ -621,7 +621,7 @@ async function executeVllmJob(job: GpuJob): Promise<void> {
     const res = await fetch(`${VLLM_URL}/v1/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: job.model, messages, max_tokens: 4096 }),
+      body: JSON.stringify({ model: job.model, messages, max_tokens: 2048 }),
     });
 
     if (!res.ok) {
