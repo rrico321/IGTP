@@ -133,10 +133,10 @@ function Test-DaemonRunning {
         $pid = [int](Get-Content $PID_FILE -ErrorAction SilentlyContinue)
         if ($pid) {
             $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
-            if ($proc -and -not $proc.HasExited) {
+            if ($proc -and -not $proc.HasExited -and $proc.ProcessName -eq "node") {
                 return $true
             }
-            # Stale PID file - clean up
+            # Stale PID file or PID reused by non-node process - clean up
             Remove-Item $PID_FILE -Force -ErrorAction SilentlyContinue
         }
     }
@@ -164,9 +164,17 @@ function Invoke-Kick {
 function Update-Status {
     $running = Test-DaemonRunning
     if ($running) {
-        $statusItem.Text = "Status: Online"
-        $tray.Icon = $iconOnline
-        $tray.Text = "IGTP Daemon - Online"
+        # Check if any cloudflared tunnels are active (busy state)
+        $cfProcs = Get-Process -Name "cloudflared" -ErrorAction SilentlyContinue
+        if ($cfProcs) {
+            $statusItem.Text = "Status: Busy (tunnel active)"
+            $tray.Icon = $iconBusy
+            $tray.Text = "IGTP Daemon - Busy"
+        } else {
+            $statusItem.Text = "Status: Online"
+            $tray.Icon = $iconOnline
+            $tray.Text = "IGTP Daemon - Online"
+        }
         $startItem.Enabled = $false
         $stopItem.Enabled = $true
     } else {

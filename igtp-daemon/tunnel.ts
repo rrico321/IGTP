@@ -24,6 +24,7 @@ export interface TunnelSession {
   process: ChildProcess;
   startedAt: Date;
   expiresAt: Date;
+  expiryTimer?: ReturnType<typeof setTimeout>;
 }
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -206,9 +207,9 @@ export async function startTunnel(
     throw err;
   }
 
-  // Auto-expire timer
+  // Auto-expire timer (stored so it can be cancelled on early stop)
   const remainingMs = expiresAt.getTime() - Date.now();
-  setTimeout(() => {
+  session.expiryTimer = setTimeout(() => {
     console.log(`[tunnel] Session ${sessionId} expired`);
     stopTunnel(sessionId);
   }, remainingMs);
@@ -219,6 +220,9 @@ export async function startTunnel(
 export function stopTunnel(sessionId: string): boolean {
   const session = activeSessions.get(sessionId);
   if (!session) return false;
+
+  // Cancel auto-expire timer
+  if (session.expiryTimer) clearTimeout(session.expiryTimer);
 
   try {
     if (platform() === "win32") {
