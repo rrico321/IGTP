@@ -620,7 +620,8 @@ async function poll() {
 
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
-console.log(`[igtp-daemon] Starting on machine ${MACHINE_ID}`);
+const DAEMON_VERSION = require("./package.json").version;
+console.log(`[igtp-daemon] v${DAEMON_VERSION} starting on machine ${MACHINE_ID}`);
 console.log(`[igtp-daemon]   API: ${API_URL}`);
 console.log(`[igtp-daemon]   Poll interval: ${POLL_INTERVAL_MS}ms`);
 console.log(`[igtp-daemon]   Heartbeat interval: ${HEARTBEAT_INTERVAL_MS}ms`);

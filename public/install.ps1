@@ -272,6 +272,8 @@ if "%1"=="update" goto update
 if "%1"=="kick" goto kick
 if "%1"=="autostart" goto autostart
 if "%1"=="uninstall" goto uninstall
+if "%1"=="version" goto version
+if "%1"=="-v" goto version
 goto help
 
 :start
@@ -352,6 +354,11 @@ if "%confirm%"=="y" (
 )
 goto end
 
+:version
+cd /d "%IGTP_DIR%\daemon"
+node -e "console.log(require('./package.json').version)"
+goto end
+
 :help
 echo IGTP Daemon - Share GPU power with your trust network
 echo.
@@ -364,6 +371,7 @@ echo   igtp update          Update daemon to latest version
 echo   igtp kick            Kill all tunnels and disconnect remote users
 echo   igtp autostart on    Start daemon automatically on login
 echo   igtp autostart off   Disable auto-start
+echo   igtp version         Show daemon version
 echo   igtp uninstall       Remove IGTP daemon from this machine
 goto end
 
