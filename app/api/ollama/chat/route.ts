@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
 
     return Response.json({ jobId: job.id, status: "queued", model, machineId }, { status: 201 });
   } catch (err) {
-    console.error("[chat] Unhandled error:", String(err), err instanceof Error ? err.stack : "");
-    return Response.json({ error: `Internal server error: ${err instanceof Error ? err.message : String(err)}` }, { status: 500 });
+    console.error("[chat] Unhandled error:", err);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
