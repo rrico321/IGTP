@@ -444,11 +444,36 @@ async function executeOllamaJob(job: GpuJob): Promise<void> {
     ? "/api/chat"
     : "/api/generate";
 
-  // Parse images if present (stored as JSON array of base64 strings)
+  // Parse images if present (stored as JSON array of base64 strings or data URIs)
   let imageArray: string[] | undefined;
   if (job.images) {
     try {
-      imageArray = JSON.parse(job.images);
+      const rawImages: string[] = JSON.parse(job.images);
+      const processed: string[] = [];
+      for (const raw of rawImages) {
+        // Strip data URI prefix if present
+        const match = raw.match(/^data:([^;]+);base64,([\s\S]+)$/);
+        const mime = match ? match[1] : "image/png";
+        const base64 = match ? match[2] : raw;
+
+        // Convert PDFs to images
+        if (mime === "application/pdf" || base64.startsWith("JVBERi")) {
+          console.log(`[igtp-daemon] Converting PDF to images for job ${job.id}`);
+          try {
+            const { pdf } = await import("pdf-to-img");
+            const buffer = Buffer.from(base64, "base64");
+            for await (const page of await pdf(buffer, { scale: 2 })) {
+              processed.push(Buffer.from(page).toString("base64"));
+            }
+          } catch (err) {
+            console.error(`[igtp-daemon] PDF conversion failed for job ${job.id}:`, err);
+            processed.push(base64); // Fall back to raw
+          }
+        } else {
+          processed.push(base64);
+        }
+      }
+      imageArray = processed.length > 0 ? processed : undefined;
     } catch {
       imageArray = undefined;
     }

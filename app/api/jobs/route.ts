@@ -2,53 +2,12 @@ import type { NextRequest } from "next/server";
 import { getJobs, createJob, getRequestById, getMachineById } from "@/lib/db";
 import { requireUserId, authenticateRequest } from "@/lib/auth";
 
-const MAX_IMAGE_BYTES = 20 * 1024 * 1024; // 20MB per image
-const MAX_PDF_BYTES = 50 * 1024 * 1024;   // 50MB per PDF
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024; // 20MB per image/PDF
 
-function stripDataUri(input: string): { mime: string; base64: string } {
-  const match = input.match(/^data:([^;]+);base64,([\s\S]+)$/);
-  if (match) return { mime: match[1], base64: match[2] };
-  return { mime: "image/png", base64: input };
-}
-
-function isPdf(mime: string, base64: string): boolean {
-  if (mime === "application/pdf") return true;
-  // Check PDF magic bytes (%PDF = JVBERi)
-  return base64.startsWith("JVBERi");
-}
-
-async function convertPdfToImages(pdfBase64: string): Promise<string[]> {
-  const { pdf } = await import("pdf-to-img");
-  const buffer = Buffer.from(pdfBase64, "base64");
-  const images: string[] = [];
-  for await (const page of await pdf(buffer, { scale: 2 })) {
-    images.push(Buffer.from(page).toString("base64"));
-  }
-  return images;
-}
-
-async function processImages(rawImages: string[]): Promise<string[]> {
-  const result: string[] = [];
-
-  for (const raw of rawImages) {
-    const { mime, base64 } = stripDataUri(raw);
-    const sizeBytes = Math.ceil(base64.length * 0.75);
-
-    if (isPdf(mime, base64)) {
-      if (sizeBytes > MAX_PDF_BYTES) {
-        throw new Error(`PDF exceeds ${MAX_PDF_BYTES / 1024 / 1024}MB limit`);
-      }
-      const pages = await convertPdfToImages(base64);
-      result.push(...pages);
-    } else {
-      if (sizeBytes > MAX_IMAGE_BYTES) {
-        throw new Error(`Image exceeds ${MAX_IMAGE_BYTES / 1024 / 1024}MB limit`);
-      }
-      result.push(base64);
-    }
-  }
-
-  return result;
+function stripDataUri(input: string): { base64: string } {
+  const match = input.match(/^data:[^;]+;base64,([\s\S]+)$/);
+  if (match) return { base64: match[1] };
+  return { base64: input };
 }
 
 export async function GET(request: NextRequest) {
@@ -104,15 +63,19 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Machine not found" }, { status: 404 });
   }
 
-  // Process images (convert PDFs to images, validate sizes)
+  // Validate and store images as-is (PDFs are converted to images by the daemon)
   let processedImages: string | undefined;
   if (images && Array.isArray(images) && images.length > 0) {
-    try {
-      const imageArray = await processImages(images);
-      processedImages = JSON.stringify(imageArray);
-    } catch (err) {
-      return Response.json({ error: `Image processing failed: ${err instanceof Error ? err.message : err}` }, { status: 400 });
+    const imageArray: string[] = [];
+    for (const raw of images) {
+      const { base64 } = stripDataUri(raw);
+      const sizeBytes = Math.ceil(base64.length * 0.75);
+      if (sizeBytes > MAX_IMAGE_BYTES) {
+        return Response.json({ error: `File exceeds ${MAX_IMAGE_BYTES / 1024 / 1024}MB limit` }, { status: 400 });
+      }
+      imageArray.push(raw); // Store with data URI prefix intact so daemon knows the type
     }
+    processedImages = JSON.stringify(imageArray);
   }
 
   const job = await createJob({
