@@ -2,12 +2,21 @@ import type { NextRequest } from "next/server";
 import { getJobs, createJob, getRequestById, getMachineById } from "@/lib/db";
 import { requireUserId, authenticateRequest } from "@/lib/auth";
 
-const MAX_IMAGE_BYTES = 20 * 1024 * 1024; // 20MB per image/PDF
+// Allow large request bodies for PDF/image uploads (Vercel default is 4.5MB)
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
 
-function stripDataUri(input: string): { base64: string } {
-  const match = input.match(/^data:[^;]+;base64,([\s\S]+)$/);
-  if (match) return { base64: match[1] };
-  return { base64: input };
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024;  // 20MB per image
+const MAX_PDF_BYTES = 100 * 1024 * 1024;   // 100MB per PDF
+
+function stripDataUri(input: string): { mime: string; base64: string } {
+  const match = input.match(/^data:([^;]+);base64,([\s\S]+)$/);
+  if (match) return { mime: match[1], base64: match[2] };
+  return { mime: "image/png", base64: input };
+}
+
+function isPdf(mime: string, base64: string): boolean {
+  return mime === "application/pdf" || base64.startsWith("JVBERi");
 }
 
 export async function GET(request: NextRequest) {
@@ -68,10 +77,12 @@ export async function POST(request: NextRequest) {
   if (images && Array.isArray(images) && images.length > 0) {
     const imageArray: string[] = [];
     for (const raw of images) {
-      const { base64 } = stripDataUri(raw);
+      const { mime, base64 } = stripDataUri(raw);
       const sizeBytes = Math.ceil(base64.length * 0.75);
-      if (sizeBytes > MAX_IMAGE_BYTES) {
-        return Response.json({ error: `File exceeds ${MAX_IMAGE_BYTES / 1024 / 1024}MB limit` }, { status: 400 });
+      const maxBytes = isPdf(mime, base64) ? MAX_PDF_BYTES : MAX_IMAGE_BYTES;
+      const maxMB = maxBytes / 1024 / 1024;
+      if (sizeBytes > maxBytes) {
+        return Response.json({ error: `File exceeds ${maxMB}MB limit` }, { status: 400 });
       }
       imageArray.push(raw); // Store with data URI prefix intact so daemon knows the type
     }
