@@ -1,5 +1,5 @@
 @echo off
-setlocal
+setlocal EnableDelayedExpansion
 
 set IGTP_DIR=%USERPROFILE%\.igtp
 set PID_FILE=%IGTP_DIR%\daemon.pid
@@ -39,8 +39,8 @@ goto end
 :status
 if exist "%IGTP_DIR%\.env" (
     for /f "usebackq tokens=*" %%a in ("%IGTP_DIR%\.env") do set %%a
-    echo Machine ID: %IGTP_MACHINE_ID%
-    echo API URL: %IGTP_API_URL%
+    echo Machine ID: !IGTP_MACHINE_ID!
+    echo API URL: !IGTP_API_URL!
 )
 echo Config: %IGTP_DIR%\.env
 echo Logs: %LOG_FILE%
