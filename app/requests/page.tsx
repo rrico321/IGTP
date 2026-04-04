@@ -85,6 +85,14 @@ export default async function RequestsPage() {
                   )}
                 </div>
 
+                {request.status === 'approved' && (
+                  <div className="mt-3 pt-3 border-t border-border space-y-1">
+                    <p className="text-xs text-muted-foreground mb-1">API Details</p>
+                    <p className="text-xs font-mono text-foreground/60">Request ID: {request.id}</p>
+                    <p className="text-xs font-mono text-foreground/60">Machine ID: {request.machineId}</p>
+                  </div>
+                )}
+
                 {request.ownerNote && (
                   <div className="mt-3 pt-3 border-t border-border">
                     <p className="text-xs text-muted-foreground mb-1">Owner note</p>
