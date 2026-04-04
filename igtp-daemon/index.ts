@@ -608,50 +608,91 @@ async function executeVllmJob(job: GpuJob): Promise<void> {
     } catch {}
   }
 
-  // Build OpenAI-format messages
   // For chandra-ocr-2, use the OCR layout extraction prompt
   const isChandra = (job.model ?? "").includes("chandra-ocr");
   const chandraPrompt = "Convert the following page to HTML with data-bbox and data-label attributes for each block.";
   const promptText = isChandra ? chandraPrompt : (job.prompt ?? job.command);
-
-  const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
-  for (const img of images) {
-    content.push({ type: "image_url", image_url: { url: img } });
-  }
-  content.push({ type: "text", text: promptText });
-
-  const messages = [{ role: "user", content }];
 
   // Generation parameters — chandra-ocr-2 needs specific settings
   const genParams = isChandra
     ? { temperature: 0.0, top_p: 0.1, max_tokens: 12384 }
     : { max_tokens: 2048 };
 
+  // For multi-page images, process one page at a time to stay within context limits
+  const shouldProcessPerPage = isChandra && images.length > 1;
+
   try {
-    const res = await fetch(`${VLLM_URL}/v1/chat/completions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: job.model, messages, ...genParams }),
-    });
+    if (shouldProcessPerPage) {
+      console.log(`[igtp-daemon] Processing ${images.length} pages individually for job ${job.id}`);
+      const allOutputs: string[] = [];
+      let totalPromptTokens = 0;
+      let totalCompletionTokens = 0;
 
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error(`[igtp-daemon] vLLM error for job ${job.id}: ${errText}`);
-      await reportCompletion(job.id, "failed", 1, null, `vLLM error: ${errText}`);
-      return;
+      for (let i = 0; i < images.length; i++) {
+        console.log(`[igtp-daemon] vLLM job ${job.id}: page ${i + 1}/${images.length}`);
+        const pageContent: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
+          { type: "image_url", image_url: { url: images[i] } },
+          { type: "text", text: promptText },
+        ];
+
+        const res = await fetch(`${VLLM_URL}/v1/chat/completions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model: job.model, messages: [{ role: "user", content: pageContent }], ...genParams }),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          console.error(`[igtp-daemon] vLLM error for job ${job.id} page ${i + 1}: ${errText}`);
+          allOutputs.push(`<!-- Page ${i + 1}: error -->`);
+          continue;
+        }
+
+        const data = await res.json();
+        const pageOutput = data.choices?.[0]?.message?.content ?? "";
+        allOutputs.push(`<!-- Page ${i + 1} -->\n${pageOutput}`);
+        totalPromptTokens += data.usage?.prompt_tokens ?? 0;
+        totalCompletionTokens += data.usage?.completion_tokens ?? 0;
+      }
+
+      const combinedOutput = allOutputs.join("\n\n");
+      await reportCompletion(job.id, "completed", 0, null, combinedOutput, {
+        promptTokens: totalPromptTokens,
+        completionTokens: totalCompletionTokens,
+        totalTokens: totalPromptTokens + totalCompletionTokens,
+      });
+      console.log(`[igtp-daemon] vLLM job ${job.id} completed (${images.length} pages)`);
+    } else {
+      // Single image or non-chandra: send all at once
+      const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
+      for (const img of images) {
+        content.push({ type: "image_url", image_url: { url: img } });
+      }
+      content.push({ type: "text", text: promptText });
+
+      const res = await fetch(`${VLLM_URL}/v1/chat/completions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: job.model, messages: [{ role: "user", content }], ...genParams }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error(`[igtp-daemon] vLLM error for job ${job.id}: ${errText}`);
+        await reportCompletion(job.id, "failed", 1, null, `vLLM error: ${errText}`);
+        return;
+      }
+
+      const data = await res.json();
+      const outputText = data.choices?.[0]?.message?.content ?? "";
+      const usage = data.usage ?? {};
+      await reportCompletion(job.id, "completed", 0, null, outputText, {
+        promptTokens: usage.prompt_tokens ?? 0,
+        completionTokens: usage.completion_tokens ?? 0,
+        totalTokens: usage.total_tokens ?? 0,
+      });
+      console.log(`[igtp-daemon] vLLM job ${job.id} completed`);
     }
-
-    const data = await res.json();
-    const outputText = data.choices?.[0]?.message?.content ?? "";
-    const usage = data.usage ?? {};
-    const tokens = {
-      promptTokens: usage.prompt_tokens ?? 0,
-      completionTokens: usage.completion_tokens ?? 0,
-      totalTokens: usage.total_tokens ?? 0,
-    };
-
-    await reportCompletion(job.id, "completed", 0, null, outputText, tokens);
-    console.log(`[igtp-daemon] vLLM job ${job.id} completed`);
   } catch (err) {
     console.error(`[igtp-daemon] vLLM job ${job.id} failed:`, err);
     await reportCompletion(job.id, "failed", 1, null, `Error: ${err}`).catch(() => {});
