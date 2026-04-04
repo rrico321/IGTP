@@ -609,19 +609,29 @@ async function executeVllmJob(job: GpuJob): Promise<void> {
   }
 
   // Build OpenAI-format messages
+  // For chandra-ocr-2, use the OCR layout extraction prompt
+  const isChandra = (job.model ?? "").includes("chandra-ocr");
+  const chandraPrompt = "Convert the following page to HTML with data-bbox and data-label attributes for each block.";
+  const promptText = isChandra ? chandraPrompt : (job.prompt ?? job.command);
+
   const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
   for (const img of images) {
     content.push({ type: "image_url", image_url: { url: img } });
   }
-  content.push({ type: "text", text: job.prompt ?? job.command });
+  content.push({ type: "text", text: promptText });
 
   const messages = [{ role: "user", content }];
+
+  // Generation parameters — chandra-ocr-2 needs specific settings
+  const genParams = isChandra
+    ? { temperature: 0.0, top_p: 0.1, max_tokens: 12384 }
+    : { max_tokens: 2048 };
 
   try {
     const res = await fetch(`${VLLM_URL}/v1/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: job.model, messages, max_tokens: 2048 }),
+      body: JSON.stringify({ model: job.model, messages, ...genParams }),
     });
 
     if (!res.ok) {
