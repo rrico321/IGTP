@@ -629,30 +629,46 @@ async function executeVllmJob(job: GpuJob): Promise<void> {
       let totalCompletionTokens = 0;
 
       for (let i = 0; i < images.length; i++) {
-        console.log(`[igtp-daemon] vLLM job ${job.id}: page ${i + 1}/${images.length}`);
+        const pageNum = i + 1;
+        console.log(`[igtp-daemon] vLLM job ${job.id}: page ${pageNum}/${images.length}`);
         const pageContent: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
           { type: "image_url", image_url: { url: images[i] } },
           { type: "text", text: promptText },
         ];
+        const reqBody = JSON.stringify({ model: job.model, messages: [{ role: "user", content: pageContent }], ...genParams });
 
-        const res = await fetch(`${VLLM_URL}/v1/chat/completions`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ model: job.model, messages: [{ role: "user", content: pageContent }], ...genParams }),
-        });
+        let pageSuccess = false;
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          const res = await fetch(`${VLLM_URL}/v1/chat/completions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: reqBody,
+          });
 
-        if (!res.ok) {
-          const errText = await res.text();
-          console.error(`[igtp-daemon] vLLM error for job ${job.id} page ${i + 1}: ${errText}`);
-          allOutputs.push(`<!-- Page ${i + 1}: error -->`);
-          continue;
+          if (!res.ok) {
+            const errText = await res.text();
+            if (attempt === 1) {
+              console.error(`[igtp-daemon] vLLM error for job ${job.id} page ${pageNum} (retrying): ${errText}`);
+              continue;
+            }
+            console.error(`[igtp-daemon] vLLM error for job ${job.id} page ${pageNum} (failed after retry): ${errText}`);
+            await reportCompletion(job.id, "failed", 1, null, `Page ${pageNum} failed after retry: ${errText}`);
+            return;
+          }
+
+          const data = await res.json();
+          const pageOutput = data.choices?.[0]?.message?.content ?? "";
+          allOutputs.push(`<!-- Page ${pageNum} -->\n${pageOutput}`);
+          totalPromptTokens += data.usage?.prompt_tokens ?? 0;
+          totalCompletionTokens += data.usage?.completion_tokens ?? 0;
+          pageSuccess = true;
+          break;
         }
 
-        const data = await res.json();
-        const pageOutput = data.choices?.[0]?.message?.content ?? "";
-        allOutputs.push(`<!-- Page ${i + 1} -->\n${pageOutput}`);
-        totalPromptTokens += data.usage?.prompt_tokens ?? 0;
-        totalCompletionTokens += data.usage?.completion_tokens ?? 0;
+        if (!pageSuccess) {
+          await reportCompletion(job.id, "failed", 1, null, `Page ${pageNum} failed after retry`);
+          return;
+        }
       }
 
       const combinedOutput = allOutputs.join("\n\n");
