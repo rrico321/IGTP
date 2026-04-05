@@ -34,6 +34,28 @@ import { createReadStream, existsSync } from "fs";
 import { unlink, readFile } from "fs/promises";
 import { startTunnel, stopTunnel, getActiveSessionCount, getActiveSessions, killOrphanedTunnels } from "./tunnel";
 
+// ─── Structured logging ──────────────────────────────────────────────────────
+
+function ts(): string {
+  return new Date().toISOString().replace("T", " ").replace("Z", "");
+}
+
+function log(tag: string, msg: string, data?: Record<string, unknown>) {
+  const extra = data ? " " + JSON.stringify(data) : "";
+  console.log(`[${ts()}] [${tag}] ${msg}${extra}`);
+}
+
+function logErr(tag: string, msg: string, data?: Record<string, unknown>) {
+  const extra = data ? " " + JSON.stringify(data) : "";
+  console.error(`[${ts()}] [${tag}] ${msg}${extra}`);
+}
+
+// Job stats tracking
+let jobsProcessed = 0;
+let jobsFailed = 0;
+let totalInferenceMs = 0;
+let pollSkips = 0;
+
 // Write PID file so tray and igtp.bat can detect/kill us
 const pidPath = join(__dirname, "..", "daemon.pid");
 writeFileSync(pidPath, String(process.pid));
@@ -62,7 +84,7 @@ const SHELL_FLAG = IS_WIN ? "/c" : "-c";
 const API_URL = process.env.IGTP_API_URL ?? "http://localhost:3000";
 const MACHINE_ID = process.env.IGTP_MACHINE_ID;
 const API_KEY = process.env.IGTP_API_KEY;
-const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS ?? 10_000);
+const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS ?? 3_000);
 const SNAPSHOT_INTERVAL_MS = Number(process.env.SNAPSHOT_INTERVAL_MS ?? 30_000);
 const HEARTBEAT_INTERVAL_MS = Number(process.env.HEARTBEAT_INTERVAL_MS ?? 60_000);
 const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://localhost:11434";
@@ -164,8 +186,15 @@ async function reportCompletion(
   exitCode: number | null,
   logUrl: string | null,
   outputText: string | null,
-  tokens?: { promptTokens: number; completionTokens: number; totalTokens: number } | null
+  tokens?: { promptTokens: number; completionTokens: number; totalTokens: number; tokensPerSec?: number | null } | null
 ) {
+  log("report", `Job ${jobId} → ${status}`, {
+    exitCode,
+    outputLen: outputText?.length ?? 0,
+    totalTokens: tokens?.totalTokens ?? 0,
+    tokensPerSec: (tokens as any)?.tokensPerSec ?? null,
+    hasLogUrl: !!logUrl,
+  });
   await apiPost(`/api/jobs/${jobId}/snapshot`, {
     status, exitCode, outputLogUrl: logUrl, outputLog: outputText,
     ...(tokens ?? {}),
@@ -259,16 +288,19 @@ async function sendHeartbeat(): Promise<void> {
       }),
     });
     if (!res.ok) {
-      console.error(`[igtp-daemon] Heartbeat failed: ${res.status}`);
+      logErr("heartbeat", `Failed: ${res.status}`);
     } else {
-      console.log(`[igtp-daemon] Heartbeat OK (a1111: ${A1111_ENABLED}, available: ${a1111Available}, tunnels: ${activeTunnels.length})`);
+      log("heartbeat", "OK", {
+        a1111: A1111_ENABLED, a1111Available, tunnels: activeTunnels.length,
+        jobsProcessed, jobsFailed, busy,
+      });
     }
   } catch (err) {
     const msg = String(err);
     if (msg.includes("fetch failed") || msg.includes("TimeoutError") || msg.includes("ECONNREFUSED")) {
-      console.error("[igtp-daemon] Heartbeat: API unreachable");
+      logErr("heartbeat", "API unreachable");
     } else {
-      console.error("[igtp-daemon] Heartbeat error:", err);
+      logErr("heartbeat", `Error: ${err}`);
     }
   }
 }
@@ -303,13 +335,13 @@ async function syncModels(): Promise<void> {
     }
 
     await apiPost(`/api/machines/${MACHINE_ID}/models`, { models });
-    console.log(`[igtp-daemon] Synced ${models.length} models`);
+    log("models", `Synced ${models.length} models`, { names: models.map((m: { name: string }) => m.name) });
   } catch (err) {
     const msg = String(err);
     if (msg.includes("fetch failed") || msg.includes("TimeoutError") || msg.includes("ECONNREFUSED")) {
-      console.error("[igtp-daemon] Model sync: Ollama unreachable");
+      logErr("models", "Ollama unreachable");
     } else {
-      console.error("[igtp-daemon] Model sync error:", err);
+      logErr("models", `Sync error: ${err}`);
     }
   }
 }
@@ -454,7 +486,7 @@ async function pollSessions(): Promise<void> {
 // ─── Ollama execution ────────────────────────────────────────────────────────
 
 async function executeOllamaJob(job: GpuJob): Promise<void> {
-  console.log(`[igtp-daemon] Ollama job ${job.id}: ${job.jobType} with ${job.model}`);
+  log("ollama", `Starting job ${job.id}`, { type: job.jobType, model: job.model });
 
   const isEmbedding = job.jobType === "embedding";
   const endpoint = isEmbedding
@@ -477,7 +509,7 @@ async function executeOllamaJob(job: GpuJob): Promise<void> {
 
         // Convert PDFs to images
         if (mime === "application/pdf" || base64.startsWith("JVBERi")) {
-          console.log(`[igtp-daemon] Converting PDF to images for job ${job.id}`);
+          log("ollama", `Converting PDF to images for job ${job.id}`);
           try {
             const { pdf } = await import("pdf-to-img");
             const buffer = Buffer.from(base64, "base64");
@@ -485,7 +517,7 @@ async function executeOllamaJob(job: GpuJob): Promise<void> {
               processed.push(Buffer.from(page).toString("base64"));
             }
           } catch (err) {
-            console.error(`[igtp-daemon] PDF conversion failed for job ${job.id}:`, String(err));
+            logErr("ollama", `PDF conversion failed for job ${job.id}: ${String(err)}`);
             await reportCompletion(job.id, "failed", 1, null, `PDF conversion failed: ${String(err)}`);
             return;
           }
@@ -494,8 +526,11 @@ async function executeOllamaJob(job: GpuJob): Promise<void> {
         }
       }
       imageArray = processed.length > 0 ? processed : undefined;
+      if (imageArray) {
+        log("ollama", `Job ${job.id} images ready`, { count: imageArray.length, totalSizeKB: Math.round(imageArray.reduce((s, i) => s + i.length * 0.75, 0) / 1024) });
+      }
     } catch (outerErr) {
-      console.error(`[igtp-daemon] Image parsing failed for job ${job.id}:`, String(outerErr));
+      logErr("ollama", `Image parsing failed for job ${job.id}: ${String(outerErr)}`);
       imageArray = undefined;
     }
   }
@@ -532,7 +567,7 @@ async function executeOllamaJob(job: GpuJob): Promise<void> {
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error(`[igtp-daemon] Ollama error for job ${job.id}: ${errText}`);
+      logErr("ollama", `Job ${job.id} API error`, { status: res.status, error: errText.slice(0, 200) });
       await reportCompletion(job.id, "failed", 1, null, `Ollama error: ${errText}`);
       return;
     }
@@ -566,9 +601,17 @@ async function executeOllamaJob(job: GpuJob): Promise<void> {
       await reportCompletion(job.id, "completed", 0, null, outputText, tokens);
     }
 
-    console.log(`[igtp-daemon] Ollama job ${job.id} completed`);
+    log("ollama", `Job ${job.id} completed`, {
+      model: job.model,
+      promptTokens: data.prompt_eval_count ?? 0,
+      completionTokens: evalCount,
+      tokensPerSec,
+      outputLen: (job.conversationId ? data.message?.content?.length : data.response?.length) ?? 0,
+      totalDurationMs: data.total_duration ? Math.round(data.total_duration / 1e6) : null,
+    });
   } catch (err) {
-    console.error(`[igtp-daemon] Ollama job ${job.id} failed:`, err);
+    jobsFailed++;
+    logErr("ollama", `Job ${job.id} failed: ${err}`);
     await reportCompletion(job.id, "failed", 1, null, `Error: ${err}`).catch(() => {});
   }
 }
@@ -787,13 +830,34 @@ async function executeJob(job: GpuJob): Promise<void> {
 let busy = false;
 
 async function poll() {
-  if (busy) return;
+  if (busy) {
+    pollSkips++;
+    return;
+  }
 
   try {
     const job = await dispatchNext();
     if (!job) return;
 
     busy = true;
+    const queuedAt = job.queuedAt ? new Date(job.queuedAt).getTime() : Date.now();
+    const waitMs = Date.now() - queuedAt;
+    const hasImages = !!job.images;
+    const imageCount = hasImages ? (JSON.parse(job.images!).length ?? 0) : 0;
+
+    log("dispatch", `Job ${job.id} claimed`, {
+      model: job.model,
+      type: job.jobType,
+      queueWaitMs: waitMs,
+      hasImages,
+      imageCount,
+      promptLen: job.prompt?.length ?? 0,
+      pollSkipsSinceLast: pollSkips,
+    });
+    pollSkips = 0;
+
+    const startTime = Date.now();
+
     if (job.model && VLLM_MODELS.has(job.model)) {
       await executeVllmJob(job);
     } else if (job.model) {
@@ -801,8 +865,22 @@ async function poll() {
     } else {
       await executeJob(job);
     }
+
+    const elapsedMs = Date.now() - startTime;
+    totalInferenceMs += elapsedMs;
+    jobsProcessed++;
+
+    log("complete", `Job ${job.id} finished`, {
+      elapsedMs,
+      elapsedSec: Math.round(elapsedMs / 1000 * 10) / 10,
+      model: job.model,
+      totalJobsProcessed: jobsProcessed,
+      totalJobsFailed: jobsFailed,
+      avgInferenceMs: Math.round(totalInferenceMs / jobsProcessed),
+    });
   } catch (err) {
-    console.error("[igtp-daemon] Poll error:", err);
+    jobsFailed++;
+    logErr("poll", `Poll error: ${err}`, { totalFailed: jobsFailed });
   } finally {
     busy = false;
   }
@@ -811,11 +889,16 @@ async function poll() {
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
 const DAEMON_VERSION = require("./package.json").version;
-console.log(`[igtp-daemon] v${DAEMON_VERSION} starting on machine ${MACHINE_ID}`);
-console.log(`[igtp-daemon]   API: ${API_URL}`);
-console.log(`[igtp-daemon]   Poll interval: ${POLL_INTERVAL_MS}ms`);
-console.log(`[igtp-daemon]   Heartbeat interval: ${HEARTBEAT_INTERVAL_MS}ms`);
-console.log(`[igtp-daemon]   Ollama: ${OLLAMA_URL}`);
+log("startup", `v${DAEMON_VERSION} starting`, {
+  machine: MACHINE_ID,
+  api: API_URL,
+  pollMs: POLL_INTERVAL_MS,
+  heartbeatMs: HEARTBEAT_INTERVAL_MS,
+  ollama: OLLAMA_URL,
+  pid: process.pid,
+  nodeVersion: process.version,
+  platform: platform(),
+});
 if (VLLM_MODELS.size > 0) {
   console.log(`[igtp-daemon]   vLLM: ${VLLM_URL} (models: ${[...VLLM_MODELS].join(", ")})`);
 }
