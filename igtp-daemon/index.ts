@@ -651,14 +651,49 @@ async function executeVllmJob(job: GpuJob): Promise<void> {
     } catch {}
   }
 
-  // For chandra-ocr-2, use the OCR layout extraction prompt
+  // For chandra-ocr-2, use the full ocr_layout prompt from the spec
   const isChandra = (job.model ?? "").includes("chandra-ocr");
-  const chandraPrompt = "Convert the following page to HTML with data-bbox and data-label attributes for each block.";
+  const chandraPrompt = `OCR this image to HTML, arranged as layout blocks.  Each layout block should be a div with the data-bbox attribute representing the bounding box of the block in x0 y0 x1 y1 format.  Bboxes are normalized 0-1000. The data-label attribute is the label for the block.
+
+Use the following labels:
+- Caption
+- Footnote
+- Equation-Block
+- List-Group
+- Page-Header
+- Page-Footer
+- Image
+- Section-Header
+- Table
+- Text
+- Complex-Block
+- Code-Block
+- Form
+- Table-Of-Contents
+- Figure
+- Chemical-Block
+- Diagram
+- Bibliography
+- Blank-Page
+
+Only use these tags ['math', 'br', 'i', 'b', 'u', 'del', 'sup', 'sub', 'table', 'tr', 'td', 'p', 'th', 'div', 'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'ul', 'ol', 'li', 'input', 'a', 'span', 'img', 'hr', 'tbody', 'small', 'caption', 'strong', 'thead', 'big', 'code', 'chem'], and these attributes ['class', 'colspan', 'rowspan', 'display', 'checked', 'type', 'border', 'value', 'style', 'href', 'alt', 'align', 'data-bbox', 'data-label'].
+
+Guidelines:
+* Inline math: Surround math with <math>...</math> tags. Math expressions should be rendered in KaTeX-compatible LaTeX. Use display for block math.
+* Tables: Use colspan and rowspan attributes to match table structure.
+* Formatting: Maintain consistent formatting with the image, including spacing, indentation, subscripts/superscripts, and special characters.
+* Images: Include a description of any images in the alt attribute of an <img> tag. Do not fill out the src property. Describe in detail inside the div tag. Also convert charts to high fidelity data, and convert diagrams to mermaid.
+* Forms: Mark checkboxes and radio buttons properly.
+* Text: join lines together properly into paragraphs using <p>...</p> tags.  Use <br> tags for line breaks within paragraphs, but only when absolutely necessary to maintain meaning.
+* Chemistry: Use <chem>...</chem> tags for chemical formulas with reactive SMILES.
+* Lists: Preserve indents and proper list markers.
+* Use the simplest possible HTML structure that accurately represents the content of the block.
+* Make sure the text is accurate and easy for a human to read and interpret.  Reading order should be correct and natural.`;
   const promptText = isChandra ? chandraPrompt : (job.prompt ?? job.command);
 
   // Generation parameters — chandra-ocr-2 needs specific settings
   const genParams = isChandra
-    ? { temperature: 0.0, top_p: 0.1, max_tokens: 12384 }
+    ? { temperature: 0.0, top_p: 0.1, max_tokens: 4096 }
     : { max_tokens: 2048 };
 
   // For multi-page images, process one page at a time to stay within context limits
@@ -678,7 +713,12 @@ async function executeVllmJob(job: GpuJob): Promise<void> {
           { type: "image_url", image_url: { url: images[i] } },
           { type: "text", text: promptText },
         ];
-        const reqBody = JSON.stringify({ model: job.model, messages: [{ role: "user", content: pageContent }], ...genParams });
+        // Suppress thinking mode by injecting empty think block as assistant prefill
+        const messages: Array<{ role: string; content: unknown }> = [
+          { role: "user", content: pageContent },
+          ...(isChandra ? [{ role: "assistant", content: "<think>\n\n</think>\n" }] : []),
+        ];
+        const reqBody = JSON.stringify({ model: job.model, messages, ...genParams });
 
         let pageSuccess = false;
         for (let attempt = 1; attempt <= 2; attempt++) {
@@ -729,10 +769,16 @@ async function executeVllmJob(job: GpuJob): Promise<void> {
       }
       content.push({ type: "text", text: promptText });
 
+      // Suppress thinking mode for chandra-ocr
+      const messages: Array<{ role: string; content: unknown }> = [
+        { role: "user", content },
+        ...(isChandra ? [{ role: "assistant", content: "<think>\n\n</think>\n" }] : []),
+      ];
+
       const res = await fetch(`${VLLM_URL}/v1/chat/completions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: job.model, messages: [{ role: "user", content }], ...genParams }),
+        body: JSON.stringify({ model: job.model, messages, ...genParams }),
       });
 
       if (!res.ok) {
