@@ -2,9 +2,10 @@ import type { NextRequest } from "next/server";
 import { getJobs, createJob, getRequestById, getMachineById } from "@/lib/db";
 import { requireUserId, authenticateRequest } from "@/lib/auth";
 
-// Allow large request bodies for PDF/image uploads (Vercel default is 4.5MB)
+// Allow large request bodies for PDF/image uploads
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
+export const bodyParser = { sizeLimit: "50mb" };
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;  // 20MB per image
 const MAX_PDF_BYTES = 100 * 1024 * 1024;   // 100MB per PDF
