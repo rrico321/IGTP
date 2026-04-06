@@ -264,7 +264,7 @@ The daemon needs an API key to authenticate with IGTP.
 
 2. Copy and paste this command into Terminal and press Enter:
 
-    curl -fsSL https://igtp.vercel.app/install.sh | sh
+    curl -fsSL https://igtp.ricobuilds.com/install.sh | sh
 
 3. The installer will:
    - Check for Node.js 20+ (and help install it if needed)
@@ -287,7 +287,7 @@ The daemon needs an API key to authenticate with IGTP.
 
 2. Copy and paste this command and press Enter:
 
-    irm https://igtp.vercel.app/install.ps1 | iex
+    irm https://igtp.ricobuilds.com/install.ps1 | iex
 
 3. Follow the same prompts as Mac/Linux (API key, hardware, machine name)
 
@@ -984,7 +984,7 @@ Send a JSON body with these fields:
 
 Open a Terminal and run:
 
-    curl -X POST https://igtp.vercel.app/api/ollama/chat \\
+    curl -X POST https://igtp.ricobuilds.com/api/ollama/chat \\
       -H "Authorization: Bearer igtp_xxxx_xxxx_xxxx_xxxx" \\
       -H "Content-Type: application/json" \\
       -d '{"machineId":"machine-1234567890","model":"llama3","messages":[{"role":"user","content":"What is the capital of France?"}]}'
@@ -1046,7 +1046,7 @@ This is more of a developer/data science use case. If you just want to chat, you
 
 ## Example Using curl
 
-    curl -X POST https://igtp.vercel.app/api/ollama/embed \\
+    curl -X POST https://igtp.ricobuilds.com/api/ollama/embed \\
       -H "Authorization: Bearer igtp_xxxx_xxxx_xxxx_xxxx" \\
       -H "Content-Type: application/json" \\
       -d '{"machineId":"machine-1234567890","model":"mxbai-embed-large","input":"The quick brown fox"}'
@@ -1078,7 +1078,7 @@ Think of it like placing an order at a counter: you get a ticket number right aw
 
 ## Example: Checking a Job
 
-    curl -X GET https://igtp.vercel.app/api/jobs/job-1234567890 \\
+    curl -X GET https://igtp.ricobuilds.com/api/jobs/job-1234567890 \\
       -H "Authorization: Bearer igtp_xxxx_xxxx_xxxx_xxxx"
 
 ## Job Status Values
@@ -1930,7 +1930,7 @@ This is a comprehensive list of all API endpoints available in IGTP. All endpoin
 - All request and response bodies use **JSON** format
 - Include **Content-Type: application/json** in POST/PATCH/DELETE requests
 - Endpoints used by the daemon (heartbeat, dispatch, snapshot, tunnel, models sync) are not meant for manual use
-- The base URL is **https://igtp.vercel.app**`,
+- The base URL is **https://igtp.ricobuilds.com**`,
   },
   {
     id: 'finding-your-ids',
@@ -2048,7 +2048,7 @@ You can send PDF files directly — IGTP automatically converts each page to an 
 
 ### Step 2: Send the request
 
-    curl -X POST https://igtp.vercel.app/api/jobs \\
+    curl -X POST https://igtp.ricobuilds.com/api/jobs \\
       -H "Authorization: Bearer igtp_xxxx_xxxx_xxxx_xxxx" \\
       -H "Content-Type: application/json" \\
       -d '{
@@ -2061,7 +2061,7 @@ You can send PDF files directly — IGTP automatically converts each page to an 
 
 ### Step 3: Check the result
 
-    curl https://igtp.vercel.app/api/jobs/JOB_ID_HERE \\
+    curl https://igtp.ricobuilds.com/api/jobs/JOB_ID_HERE \\
       -H "Authorization: Bearer igtp_xxxx_xxxx_xxxx_xxxx"
 
 The \`outputLog\` field will contain the extracted text.

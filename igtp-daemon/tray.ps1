@@ -21,7 +21,7 @@ if (Test-Path $ENV_FILE) {
     }
 }
 
-$API_URL = if ($config.IGTP_API_URL) { $config.IGTP_API_URL } else { "https://igtp.vercel.app" }
+$API_URL = if ($config.IGTP_API_URL) { $config.IGTP_API_URL } else { "https://igtp.ricobuilds.com" }
 $MACHINE_ID = $config.IGTP_MACHINE_ID
 $API_KEY = $config.IGTP_API_KEY
 $A1111_ENABLED = $config.A1111_ENABLED -eq "true"

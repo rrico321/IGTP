@@ -12,7 +12,7 @@ Think of it like this: your friend has a powerful gaming computer with AI models
 
 **There are two parts:**
 
-1. **The Website** — This is where everything happens. You sign up, find machines, chat with AI models, and manage your account. You access it in your web browser at [igtp.vercel.app](https://igtp.vercel.app).
+1. **The Website** — This is where everything happens. You sign up, find machines, chat with AI models, and manage your account. You access it in your web browser at [igtp.vercel.app](https://igtp.ricobuilds.com).
 
 2. **The Daemon** (pronounced "dee-mon") — This is a small helper program that runs quietly in the background on the computer being shared. It connects that computer to the website so other people can use its AI models. You only need the daemon if you are **sharing your own computer**. If you just want to use someone else's computer, you only need the website.
 
@@ -57,7 +57,7 @@ Ollama is the software that actually runs AI models on your computer. If you don
 
 #### Step 2: Sign up on the website
 
-1. Go to [igtp.vercel.app](https://igtp.vercel.app)
+1. Go to [igtp.vercel.app](https://igtp.ricobuilds.com)
 2. Create your account
 3. Go to **Settings > API Keys** (click "API Keys" in the top menu)
 4. Click **Generate API Key**
@@ -73,13 +73,13 @@ The daemon is a small program that runs in the background on your computer. It d
 **On Mac or Linux**, open Terminal and paste this command:
 
 ```bash
-curl -fsSL https://igtp.vercel.app/install.sh | bash
+curl -fsSL https://igtp.ricobuilds.com/install.sh | bash
 ```
 
 **On Windows**, open PowerShell (search for "PowerShell" in the Start menu) and paste this command:
 
 ```powershell
-irm https://igtp.vercel.app/install.ps1 | iex
+irm https://igtp.ricobuilds.com/install.ps1 | iex
 ```
 
 The installer will walk you through everything:
@@ -165,7 +165,7 @@ First, generate an API key at **Settings > API Keys** on the website.
 ### Chat with a model
 
 ```bash
-curl -X POST https://igtp.vercel.app/api/ollama/chat \
+curl -X POST https://igtp.ricobuilds.com/api/ollama/chat \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -179,7 +179,7 @@ This returns a job ID. Poll for the result:
 
 ```bash
 curl -H "Authorization: Bearer YOUR_API_KEY" \
-  https://igtp.vercel.app/api/jobs/JOB_ID_HERE
+  https://igtp.ricobuilds.com/api/jobs/JOB_ID_HERE
 ```
 
 The response includes the AI's answer and token usage.
@@ -187,7 +187,7 @@ The response includes the AI's answer and token usage.
 ### Generate embeddings
 
 ```bash
-curl -X POST https://igtp.vercel.app/api/ollama/embed \
+curl -X POST https://igtp.ricobuilds.com/api/ollama/embed \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{

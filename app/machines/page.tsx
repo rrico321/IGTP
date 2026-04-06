@@ -50,7 +50,7 @@ export default async function MachinesPage() {
               </div>
               <p className="text-xs text-muted-foreground mb-3">Open PowerShell and run:</p>
               <code className="block bg-muted text-foreground text-xs font-mono p-2.5 rounded-md break-all leading-relaxed select-all">
-                irm https://igtp.vercel.app/install.ps1 | iex
+                irm https://igtp.ricobuilds.com/install.ps1 | iex
               </code>
             </div>
 
@@ -62,7 +62,7 @@ export default async function MachinesPage() {
               </div>
               <p className="text-xs text-muted-foreground mb-3">Open Terminal and run:</p>
               <code className="block bg-muted text-foreground text-xs font-mono p-2.5 rounded-md break-all leading-relaxed select-all">
-                curl -fsSL https://igtp.vercel.app/install.sh | bash
+                curl -fsSL https://igtp.ricobuilds.com/install.sh | bash
               </code>
             </div>
 
@@ -74,7 +74,7 @@ export default async function MachinesPage() {
               </div>
               <p className="text-xs text-muted-foreground mb-3">Open a terminal and run:</p>
               <code className="block bg-muted text-foreground text-xs font-mono p-2.5 rounded-md break-all leading-relaxed select-all">
-                curl -fsSL https://igtp.vercel.app/install.sh | bash
+                curl -fsSL https://igtp.ricobuilds.com/install.sh | bash
               </code>
             </div>
           </div>

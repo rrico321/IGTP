@@ -2,7 +2,7 @@
 $ErrorActionPreference = "Stop"
 
 $IGTP_DIR = "$env:USERPROFILE\.igtp"
-$API_URL = "https://igtp.vercel.app"
+$API_URL = "https://igtp.ricobuilds.com"
 
 Write-Host ""
 Write-Host "======================================" -ForegroundColor Cyan

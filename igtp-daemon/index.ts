@@ -8,7 +8,7 @@
  * Run `npx tsx setup.ts` first to generate your .env configuration.
  *
  * Environment variables required:
- *   IGTP_API_URL      — Base URL of the IGTP app (e.g. https://igtp.vercel.app)
+ *   IGTP_API_URL      — Base URL of the IGTP app (e.g. https://igtp.ricobuilds.com)
  *   IGTP_MACHINE_ID   — ID of this machine in the IGTP database
  *   IGTP_API_KEY      — API key generated at Settings > API Keys on the website
  *

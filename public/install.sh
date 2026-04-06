@@ -10,7 +10,7 @@ NC='\033[0m' # No Color
 BOLD='\033[1m'
 
 IGTP_DIR="$HOME/.igtp"
-API_URL="https://igtp.vercel.app"
+API_URL="https://igtp.ricobuilds.com"
 
 echo ""
 echo -e "${BOLD}╔══════════════════════════════════════╗${NC}"
@@ -377,7 +377,7 @@ UNIT_EOF
     load_env
     echo "Kicking all connected users..."
     curl -s -X POST -H "Authorization: Bearer ${IGTP_API_KEY:-}" \
-      "${IGTP_API_URL:-https://igtp.vercel.app}/api/machines/${IGTP_MACHINE_ID:-}/kick"
+      "${IGTP_API_URL:-https://igtp.ricobuilds.com}/api/machines/${IGTP_MACHINE_ID:-}/kick"
     echo ""
     echo "Done."
     ;;

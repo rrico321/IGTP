@@ -47,8 +47,8 @@ async function main() {
   console.log("── Step 1: Connection ──────────────────────────────");
   console.log("");
 
-  const apiUrl = (await ask(rl, `  IGTP API URL [${existing.IGTP_API_URL ?? "https://igtp.vercel.app"}]: `)).trim()
-    || existing.IGTP_API_URL || "https://igtp.vercel.app";
+  const apiUrl = (await ask(rl, `  IGTP API URL [${existing.IGTP_API_URL ?? "https://igtp.ricobuilds.com"}]: `)).trim()
+    || existing.IGTP_API_URL || "https://igtp.ricobuilds.com";
 
   const machineId = (await ask(rl, `  Machine ID (from your IGTP dashboard): `)).trim()
     || existing.IGTP_MACHINE_ID || "";
