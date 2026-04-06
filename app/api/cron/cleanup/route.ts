@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
 
+function createSql(url: string) {
+  if (url.includes("neon.tech") || url.includes("neon.cloud")) return neon(url);
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require("postgres")(url);
+}
+
 // Stale threshold: cancel pending requests older than 7 days
 const STALE_DAYS = 7;
 
@@ -17,7 +23,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "DATABASE_URL not set" }, { status: 500 });
   }
 
-  const sql = neon(url);
+  const sql = createSql(url);
   const cutoff = new Date(Date.now() - STALE_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
   const cancelled = await sql`

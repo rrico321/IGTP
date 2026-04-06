@@ -2,6 +2,16 @@ import { neon } from "@neondatabase/serverless";
 import { readFileSync } from "fs";
 import path from "path";
 
+function isNeonUrl(url: string): boolean {
+  return url.includes("neon.tech") || url.includes("neon.cloud");
+}
+
+function createSql(url: string) {
+  if (isNeonUrl(url)) return neon(url);
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require("postgres")(url);
+}
+
 // POST /api/migrate — creates tables and seeds initial data.
 // Only available in development or when MIGRATE_SECRET matches.
 export async function POST(request: Request) {
@@ -18,7 +28,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "DATABASE_URL is not set" }, { status: 500 });
   }
 
-  const sql = neon(url);
+  const sql = createSql(url);
   const schemaPath = path.join(process.cwd(), "lib", "schema.sql");
   const schema = readFileSync(schemaPath, "utf-8");
 

@@ -1,10 +1,29 @@
+// @ts-nocheck — dual-driver pattern (neon HTTP + local postgres TCP) uses same tagged-template API
+// but TypeScript can't model the union return type cleanly
 import { neon } from "@neondatabase/serverless";
 import type { Machine, AccessRequest, User, TrustConnection, Notification, GpuJob, JobUsageSnapshot, UsageReport, Invite, ApiKey, MachineModel, Conversation, ConversationMessage, FriendRequest, A1111Session, DashboardStats } from "./types";
+
+// Support both Neon (HTTP) and local Postgres (TCP) connections.
+// The `postgres` npm package has the same tagged-template API as neon().
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _localSql: any = null;
 
 function getSql() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL environment variable is not set");
-  return neon(url);
+
+  if (url.includes("neon.tech") || url.includes("neon.cloud")) {
+    return neon(url);
+  }
+
+  if (!_localSql) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const postgres = require("postgres");
+    _localSql = postgres(url);
+  }
+  // Cast to neon's type — both have identical tagged-template SQL interfaces
+  return _localSql as ReturnType<typeof neon>;
 }
 
 // ─── Machines ────────────────────────────────────────────────────────────────
