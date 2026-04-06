@@ -52,8 +52,10 @@ Invoke-WebRequest -Uri "$GH_RAW/tray.ps1" -OutFile "$IGTP_DIR\tray.ps1"
 # ─── Install dependencies ────────────────────────────────────────────────
 Write-Host "Installing dependencies..." -ForegroundColor Blue
 Push-Location "$IGTP_DIR\daemon"
-npm install --silent 2>$null
-npm install --save-dev tsx typescript 2>$null
+$ErrorActionPreference = "SilentlyContinue"
+npm install --silent 2>&1 | Out-Null
+npm install --save-dev tsx typescript 2>&1 | Out-Null
+$ErrorActionPreference = "Stop"
 Pop-Location
 Write-Host "[OK] Dependencies installed" -ForegroundColor Green
 
